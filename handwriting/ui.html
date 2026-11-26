@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InkPrint · Write</title>
+<meta name="description" content="Turn typed text into realistic handwriting with an AI model or a single-line font, ready for a pen plotter.">
+<meta name="theme-color" content="#e6dbc7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#13182a" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/app.css">
+<style>
+/* Write page layout; shared parts are in /static/app.css */
+body { display: grid; grid-template-rows: 56px 1fr; }
+.write { display: grid; grid-template-columns: 440px 1fr; min-height: 0; }
+.editor { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
+.editor__scroll { flex: 1; overflow-y: auto; padding: 8px 24px 16px; }
+.sec--text textarea { min-height: 200px; font-size: 16px; line-height: 24px; padding: 12px 14px; }
+.skipped { margin-top: 8px; font-size: 13px; line-height: 18px; color: var(--warn); }
+.gen { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.gen .state { flex: 1; font-size: 13px; line-height: 18px; color: var(--muted); }
+.gen .state.stale { color: var(--warn); }
+.gen .state.ok { color: var(--ok); }
+.bar { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 12px; }
+.bar i { display: block; height: 100%; width: 0; background: var(--ink); transition: width var(--m-panel) var(--ease); }
+.bar.indet i { width: 35%; animation: slide 1.2s var(--ease) infinite; }
+@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+.settings { padding-top: 16px; border-top: 1px solid var(--line); }
+.settings .tabs { margin-bottom: 20px; }
+.tabpanel .sec { border-top: 0; padding: 0; }
+.tabpanel .sec + .sec { margin-top: 0; }
+.row { display: block; margin: 0 0 16px; }
+.row .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+.row label { font-size: 14px; }
+#writer-row label { display: block; margin-bottom: 6px; }
+.seed { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+.seed label { font-size: 14px; flex: 1; }
+.seed input { width: 104px; }
+.reset-row { display: flex; justify-content: flex-start; padding-top: 8px; }
+.stylebar { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: end; margin-bottom: 16px; }
+.stylebar label { grid-column: 1 / -1; font-size: 14px; }
+.stylebar select { width: 100%; min-width: 0; }
+.stylename { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; margin: -8px 0 16px; }
+.stylename input { min-width: 0; }
+.stylenote { font-size: 13px; color: var(--muted); margin: -8px 0 16px; }
+.export { border-top: 1px solid var(--line); padding: 16px 24px 20px; display: grid; gap: 12px; }
+.export__row { display: flex; gap: 8px; align-items: center; }
+.export__label { font-size: 13px; line-height: 18px; font-weight: 500; color: var(--muted); margin-bottom: -8px; }
+.export .name { display: flex; align-items: center; flex: 1; min-width: 0; }
+.export .name input { border-radius: var(--r-sm) 0 0 var(--r-sm); min-width: 0; }
+.export .name em { font-style: normal; color: var(--muted); border: 1px solid var(--line-strong); border-left: 0; padding: 7px 10px; border-radius: 0 var(--r-sm) var(--r-sm) 0; background: var(--tint); }
+.export details summary { font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; width: fit-content; border-radius: 4px; }
+.export details summary:hover { color: var(--ink); }
+.export details .switch { margin-bottom: 0; }
+.preview { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.toolbar { display: flex; align-items: center; gap: 12px; padding: 10px 24px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.stats { display: flex; gap: 16px; flex: 1; flex-wrap: wrap; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip b { color: var(--ink); font-weight: 600; }
+.desk { flex: 1; overflow: auto; background: var(--desk); padding: 40px; display: flex; justify-content: center; align-items: flex-start; }
+.paper { background: var(--paper); box-shadow: var(--shadow); border-radius: 2px; width: 100%; max-width: 1200px; position: relative; transition: opacity var(--m-panel) var(--ease); }
+.paper.busy { opacity: .7; }
+.paper.real { width: auto; max-width: none; }
+#sheet { display: block; width: 100%; height: auto; }
+.paper.real #sheet { width: var(--realw); }
+#sheet .ink { stroke: var(--pen); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+#sheet .rule { stroke: var(--rule); }
+#sheet .margin { stroke: var(--margin); }
+#sheet .todo { fill: #cfc4ad; opacity: .5; }
+.empty { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 4px; color: #6d6455; font-size: 14px; pointer-events: none; text-align: center; padding: 24px; }
+.empty b { color: #062b8a; font-size: 18px; line-height: 28px; font-weight: 600; }
+.empty[hidden] { display: none; }
+#toast .muted { color: var(--muted); }
+@media (max-width: 960px) {
+  html, body { height: auto; }
+  body { display: block; overflow: auto; }
+  .appbar { height: auto; flex-wrap: wrap; gap: 8px 16px; padding: 8px 16px; }
+  .appbar__tools { flex: 0 0 auto; margin-left: auto; }
+  .write { display: block; }
+  .editor { display: block; border-right: 0; }
+  .editor__scroll { overflow: visible; padding: 8px 16px 16px; }
+  .export { padding: 16px; }
+  .export__row { flex-wrap: wrap; }
+  .export .name { flex: 1 1 100%; }
+  .export__row > button { flex: 1; }
+  .preview { display: block; }
+  .toolbar { padding: 10px 16px; }
+  .desk { padding: 16px; min-height: 60vh; }
+}
+@media (max-width: 640px) {
+  .pages a, .brand { min-height: 44px; }
+  .seg button, .tabs button, .theme-pick select, .seed input, .export .name input, .export .name em { min-height: 44px; }
+  .seg button { padding: 0 12px; }
+  .export .name em { display: flex; align-items: center; }
+  button, button.small { min-height: 44px; }
+  input[type=range] { height: 44px; }
+  .export details summary { display: flex; align-items: center; min-height: 44px; }
+  .row { margin-bottom: 12px; }
+  .toolbar .stats { flex: 1 1 100%; }
+  .toolbar .seg { flex: 1; }
+  .toolbar .seg button { flex: 1; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#text">Skip to the text box</a>
+<header class="appbar">
+  <a class="brand" href="/" aria-label="InkPrint"><svg id="logo" viewBox="0 0 10 10" role="img" aria-label="InkPrint"></svg></a>
+  <nav class="pages" aria-label="Pages"><a href="/" aria-current="page">Write</a><a href="/plotter">Plotter</a><a href="/fonts">Fonts</a></nav>
+  <div class="appbar__tools">
+    <label class="theme-pick"><select id="theme" aria-label="Theme" title="Theme"><option value="">Auto theme</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+  </div>
+</header>
+
+<div class="write">
+<aside class="editor" aria-label="Text and settings">
+  <div class="editor__scroll">
+    <section class="sec sec--text">
+      <div class="sec__head">
+        <h2><label for="text">Text</label></h2>
+        <span class="seg" id="engine" role="group" aria-label="Write with"><button data-v="model">AI model</button><button data-v="font" id="font-name">My font</button></span>
+      </div>
+      <textarea id="text" spellcheck="true" placeholder="Type what you want written…"></textarea>
+      <div class="skipped" id="skipped"></div>
+      <div class="gen">
+        <div class="state" id="state" role="status">Loading the handwriting model…</div>
+        <button id="generate" title="⌘ Return">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          Write it now
+        </button>
+      </div>
+      <div class="bar" id="bar" hidden><i></i></div>
+    </section>
+
+    <section class="settings" aria-label="Settings">
+      <div class="stylebar">
+        <label for="style-pick">Handwriting style</label>
+        <select id="style-pick"></select>
+        <button class="small" id="style-save" title="Keep these settings under a name, to use again here or in the Plotter">Save style</button>
+        <button class="small" id="style-del" title="Delete this saved style" hidden>Delete</button>
+      </div>
+      <div class="stylename" id="style-name-row" hidden>
+        <input type="text" id="style-name" maxlength="40" placeholder="Name, e.g. Neat letter" aria-label="Style name">
+        <button class="small primary" id="style-name-ok">Save</button>
+        <button class="small" id="style-name-cancel">Cancel</button>
+      </div>
+      <p class="stylenote" id="style-note" hidden></p>
+      <div class="seg tabs" id="ptabs" role="tablist" aria-label="Settings">
+        <button data-v="hand" class="on" role="tab" aria-selected="true">Handwriting</button><button data-v="look" role="tab" aria-selected="false">Look</button><button data-v="page" role="tab" aria-selected="false">Page</button>
+      </div>
+      <div class="tabpanel" data-tab="hand" role="tabpanel">
+        <div class="sec" id="g-neat">
+          <div class="row" id="writer-row">
+            <label for="writer">Writer</label>
+            <select id="writer"></select>
+          </div>
+          <div class="seed">
+            <label for="seed">Variation</label>
+            <input type="number" id="seed" min="0" max="999999" step="1">
+            <button id="dice" title="Write it again differently">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>
+              Shuffle
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="tabpanel" data-tab="look" role="tabpanel" hidden>
+        <div class="sec" id="g-look"></div>
+        <div class="sec" id="g-font" hidden>
+          <div class="row" id="face-row">
+            <label for="face">Font</label>
+            <select id="face"></select>
+          </div>
+          <p class="help" style="margin:-4px 0 12px"><a href="/fonts">Make a font from your own handwriting</a>: draw it, scan it, or import one.</p>
+        </div>
+        <p class="help">Changes here redraw the writing instantly. Double-click a slider to reset it.</p>
+      </div>
+      <div class="tabpanel" data-tab="page" role="tabpanel" hidden>
+        <div class="sec" id="g-page"></div>
+        <div class="reset-row"><button class="small" id="reset" title="Put every setting back to its default">Reset all settings</button></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="export">
+    <button class="primary lg wide" id="to-plotter" title="Put this handwriting on the plotter's sheet">
+      Send to Plotter
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
+    </button>
+    <label class="export__label" for="name">File name</label>
+    <div class="export__row">
+      <div class="name"><input type="text" id="name" value="handwriting"><em id="ext">.svg</em></div>
+      <button id="save" title="⌘S">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg>
+        Save SVG
+      </button>
+      <button id="png">Save PNG</button>
+    </div>
+    <details>
+      <summary>SVG options</summary>
+      <label class="switch" id="split-row">
+        <input type="checkbox" id="split"><span class="knob"></span>
+        <span><b>BambuPlot true size</b><small>Split into 60&nbsp;mm frames so each file imports at its real size</small></span>
+      </label>
+    </details>
+  </div>
+</aside>
+
+<main id="main" class="preview">
+  <div class="toolbar">
+    <div class="stats" id="stats"></div>
+    <div class="seg" id="lines-toggle" role="group" aria-label="Paper"><button data-v="1" class="on">Ruled</button><button data-v="0">Plain</button></div>
+    <div class="seg" id="zoom" role="group" aria-label="Zoom"><button data-v="fit" class="on">Fit</button><button data-v="real">True size</button></div>
+  </div>
+  <div class="desk">
+    <div class="paper" id="paper"><svg id="sheet" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Preview of the handwriting"></svg><div class="empty" id="empty" hidden></div></div>
+  </div>
+</main>
+</div>
+<div id="toast" role="status"></div>
+<script>
+// k: setting, g: card, live: changes instantly (no new writing needed)
+const SLIDERS = [
+  { k: 'neatness', eng: 'model', g: 'g-neat', label: 'Neatness', min: .2, max: 1.5, step: .05, fmt: v => v.toFixed(2), ends: ['Loose', 'Tidy'] },
+  { k: 'attempts', eng: 'model', g: 'g-neat', label: 'Readability tries', min: 1, max: 10, step: 1, fmt: v => v + (v == 1 ? ' try' : ' tries'), ends: ['Faster', 'Fewer scribbles'] },
+  { k: 'mistakes', g: 'g-neat', label: 'Crossed-out mistakes', min: 0, max: .25, step: .01, fmt: v => v == 0 ? 'none' : Math.round(v * 100) + '% of words', ends: ['None', 'Lots'] },
+  { k: 'letter_size', g: 'g-look', label: 'Letter size', min: 1, max: 5, step: .05, fmt: v => v.toFixed(2) + ' mm', live: true, tag: 'avg. letter width' },
+  { k: 'slant', g: 'g-look', label: 'Slant', min: -.2, max: .9, step: .01, fmt: v => Math.round(Math.atan(v) * 180 / Math.PI) + '°', live: true },
+  { k: 'width', g: 'g-look', label: 'Letter width', min: .4, max: 1.3, step: .01, fmt: v => '×' + v.toFixed(2), live: true },
+  { k: 'small', g: 'g-look', label: 'Small letters', min: .4, max: 1.2, step: .01, fmt: v => Math.round(v * 100) + '%', live: true, tag: 'tall letters stay tall', ends: ['Tiny', 'As written'] },
+  { k: 'joins', g: 'g-look', label: 'Joined-up', min: 0, max: 1, step: .05, fmt: v => Math.round(v * 100) + '%', live: true, ends: ['As written', 'Cursive'] },
+  { k: 'wander', g: 'g-look', label: 'Wanders off the line', min: 0, max: 1, step: .01, fmt: v => Math.round(v * 100) + '%', live: true, ends: ['On the line', 'Wobbly'] },
+  { k: 'margin', g: 'g-look', label: 'Uneven left margin', min: 0, max: 1, step: .01, fmt: v => Math.round(v * 100) + '%', live: true, ends: ['Straight', 'Uneven'] },
+  { k: 'line_height', g: 'g-page', label: 'Line spacing', min: 4, max: 20, step: .5, fmt: v => v.toFixed(1) + ' mm', live: true },
+  { k: 'max_width', g: 'g-page', label: 'Wrap lines at', min: 40, max: 250, step: 1, fmt: v => Math.round(v) + ' mm' },
+  // the hand-drawn font made from your writing
+  { k: 'size', o: 'font', g: 'g-font', label: 'Letter size', min: .8, max: 6, step: .05, fmt: v => v.toFixed(2) + ' mm', live: true, tag: 'height of small letters' },
+  { k: 'tidiness', o: 'font', g: 'g-font', label: 'Tidiness', min: 0, max: 1, step: .01, fmt: v => Math.round(v * 100) + '%', live: true, ends: ['Scruffy', 'Neat'] },
+  { k: 'slant', o: 'font', g: 'g-font', label: 'Slant', min: -.3, max: 1, step: .01, fmt: v => Math.round(Math.atan(v) * 180 / Math.PI) + '°', live: true },
+  { k: 'width', o: 'font', g: 'g-font', label: 'Letter width', min: .5, max: 1.8, step: .01, fmt: v => '×' + v.toFixed(2), live: true },
+  { k: 'ascender', o: 'font', g: 'g-font', label: 'Tall letters and capitals', min: .5, max: 1.6, step: .01, fmt: v => Math.round(v * 100) + '%', live: true },
+  { k: 'descender', o: 'font', g: 'g-font', label: 'Tails', min: .5, max: 1.6, step: .01, fmt: v => Math.round(v * 100) + '%', live: true },
+  { k: 'letter_spacing', o: 'font', g: 'g-font', label: 'Letter spacing', min: -.3, max: .8, step: .01, fmt: v => v.toFixed(2), live: true, ends: ['Tight', 'Loose'] },
+  { k: 'word_spacing', o: 'font', g: 'g-font', label: 'Word spacing', min: .6, max: 3, step: .05, fmt: v => v.toFixed(2), live: true },
+  { k: 'wander', o: 'font', g: 'g-font', label: 'Wanders off the line', min: 0, max: 1, step: .01, fmt: v => Math.round(v * 100) + '%', live: true, ends: ['On the line', 'Wobbly'] },
+  { k: 'margin', o: 'font', g: 'g-font', label: 'Uneven left margin', min: 0, max: 1, step: .01, fmt: v => Math.round(v * 100) + '%', live: true, ends: ['Straight', 'Uneven'] },
+];
+const $ = id => document.getElementById(id);
+const state = { text: '', style: {}, font: {}, engine: 'model', rules: true, split: true, name: 'handwriting', zoom: 'fit', theme: null, tab: 'write', panel: 'hand' };
+let defaults = {}, last = null, ready = false;
+
+function api(path, body) {
+  return fetch(path, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(r => r.json().then(j => { if (!r.ok) throw new Error(j.error || r.statusText); return j; }));
+}
+
+function buildSliders() {
+  for (const s of SLIDERS) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    if (s.eng) row.dataset.eng = s.eng;
+    row.innerHTML = `<div class="top"><label for="s-${s.o || ''}${s.k}">${s.label}${s.tag ? `<span class="tag">${s.tag}</span>` : ''}</label><span class="pill" id="v-${s.o || ''}${s.k}"></span></div>
+      <input type="range" id="s-${s.o || ''}${s.k}" min="${s.min}" max="${s.max}" step="${s.step}">` +
+      (s.ends ? `<div class="ends"><span>${s.ends[0]}</span><span>${s.ends[1]}</span></div>` : '');
+    const group = $(s.g);
+    group.insertBefore(row, s.g === 'g-neat' ? group.querySelector('.seed') : null);
+    row.querySelector('input').addEventListener('input', e => { obj(s)[s.k] = +e.target.value; paintSlider(s); changed(); });
+    row.addEventListener('dblclick', () => { obj(s)[s.k] = (s.o === 'font' ? defaults.font : defaults.style)[s.k]; paintSlider(s); changed(); });
+  }
+  const w = $('writer');
+  const NOTE = { 9: ' (default)', 2: ': most joined up', 11: ': tall and narrow', 4: ': joined, very readable', 12: ': fairly joined' };
+  for (let i = 0; i <= 12; i++) w.add(new Option('Writer ' + i + (NOTE[i] || ''), i));
+  w.onchange = () => { state.style.writer = +w.value; changed(); };
+}
+const obj = s => s.o === 'font' ? state.font : state.style;
+function paintSlider(s) {
+  const id = (s.o || '') + s.k, el = $('s-' + id), v = obj(s)[s.k];
+  el.value = v;
+  el.style.setProperty('--p', ((v - s.min) / (s.max - s.min) * 100) + '%');
+  $('v-' + id).textContent = s.fmt(+v);
+}
+function setEngine(v) {
+  state.engine = v === 'font' ? 'font' : 'model';
+  setSeg('engine', state.engine);
+  const font = state.engine === 'font';
+  $('writer-row').hidden = font; $('g-look').hidden = font; $('g-font').hidden = !font; $('generate').hidden = font;
+  document.querySelectorAll('[data-eng]').forEach(r => r.hidden = r.dataset.eng !== state.engine);
+}
+function paintAll() {
+  SLIDERS.forEach(paintSlider);
+  if ($('face').options.length) $('face').value = state.font.face || '';
+  $('writer').value = state.style.writer;
+  $('seed').value = state.style.seed;
+  $('text').value = state.text;
+  $('split').checked = state.split;
+  $('name').value = state.name;
+  setSeg('lines-toggle', state.rules ? '1' : '0');
+  setSeg('zoom', state.zoom);
+  setTab(state.tab);
+  setEngine(state.engine);
+  applyTheme();
+  requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.add('ready')));
+}
+function applyTheme() {
+  const t = state.theme === 'light' || state.theme === 'dark' ? state.theme : '';
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  $('theme').value = t;
+}
+function setSeg(id, v) { for (const b of $(id).children) { b.classList.toggle('on', b.dataset.v === v); b.setAttribute('aria-pressed', b.dataset.v === v); } }
+function setTab(v) { state.tab = 'write'; }
+function showPanel(v) {
+  for (const b of $('ptabs').children) { const on = b.dataset.v === v; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; }
+  document.querySelectorAll('.tabpanel').forEach(p => p.hidden = p.dataset.tab !== v);
+  state.panel = v;
+}
+
+let renderTimer, saveTimer, autoTimer, seq = 0, generating = false, again = false, failed = false;
+function changed(plotOnly) {
+  if (!plotOnly) failed = false;
+  clearTimeout(saveTimer); saveTimer = setTimeout(() => api('/settings', state).catch(() => {}), 500);
+  if (plotOnly) return;
+  if (typeof styles !== 'undefined' && styles.length) paintStyles();
+  clearTimeout(renderTimer); renderTimer = setTimeout(render, 60);
+}
+
+// one preview request at a time: changes made while one is drawing are sent once it returns (never a queue)
+let rendering = false, renderAgain = false;
+async function render() {
+  if (rendering) { renderAgain = true; return; }
+  rendering = true; renderAgain = false;
+  const id = ++seq;
+  try {
+    const d = await api('/render', { text: state.text, style: state.style, engine: state.engine, font: state.font });
+    if (id === seq && !renderAgain) {
+      last = d; draw(d); showState(d);
+      if (d.missing && !generating && !failed) { clearTimeout(autoTimer); autoTimer = setTimeout(generate, 1200); }
+    }
+  } catch (e) { toast('Could not render', e.message, true); }
+  rendering = false;
+  if (renderAgain) render();
+}
+
+function showState(d) {
+  const el = $('state');
+  if (generating) return;
+  if (state.engine === 'font') { el.className = d && d.strokes ? 'state ok' : 'state'; el.textContent = d && d.strokes ? 'Up to date: written in the font, instantly' : 'Type something to write'; return; }
+  if (!ready) { el.className = 'state'; el.textContent = 'Loading the handwriting model…'; return; }
+  if (d && d.missing) { el.className = 'state stale'; el.textContent = `${d.missing} line${d.missing > 1 ? 's' : ''} still to write, starting shortly`; }
+  else if (d && d.strokes) { el.className = 'state ok'; el.textContent = 'Up to date'; }
+  else { el.className = 'state'; el.textContent = 'Type something and it will be written'; }
+}
+
+async function generate() {
+  clearTimeout(autoTimer);
+  if (generating) { again = true; return; }
+  generating = true; again = false;
+  $('generate').disabled = true; $('paper').classList.add('busy');
+  const bar = $('bar'); bar.hidden = false; bar.classList.add('indet');
+  let shownLines = 0;
+  const poll = setInterval(async () => {
+    try {
+      const s = await api('/status');
+      const el = $('state'); el.className = 'state';
+      if (s.phase === 'loading') el.textContent = 'Loading the handwriting model…';
+      else if ((s.phase === 'writing' || s.phase === 'checking') && s.lines) {
+        const what = s.round > 1 ? 'rewriting a hard-to-read part' : s.phase === 'checking' ? 'picking the most readable try' : `${state.style.attempts} tries`;
+        el.textContent = `Writing line ${s.line} of ${s.lines} (${what})…`;
+        const part = s.phase === 'checking' ? s.done / Math.max(1, s.total) : 0;
+        bar.classList.remove('indet'); bar.querySelector('i').style.width = ((s.lines_done + part) / s.lines * 100) + '%';
+      }
+      if (s.lines_done > shownLines) { shownLines = s.lines_done; render(); }     // show each line as soon as it is done
+    } catch (e) {}
+  }, 350);
+  try {
+    const d = await api('/generate', { text: state.text, style: state.style, engine: state.engine, font: state.font });
+    last = d; draw(d);
+  } catch (e) { failed = true; toast('Could not write that', e.message, true); }
+  clearInterval(poll);
+  generating = false;
+  $('generate').disabled = false; $('paper').classList.remove('busy');
+  bar.hidden = true; bar.classList.remove('indet'); bar.querySelector('i').style.width = '0';
+  if (again) generate(); else render();
+}
+
+function draw(d) {
+  const lh = d.line_height, n = d.lines.length;
+  const shown = Math.max(n, 5) + 1;
+  const w = Math.max(state.style.max_width, d.ink_width) + 8;
+  const x0 = -16, y0 = -lh * 1.1, W = w - x0, H = shown * lh - y0 + lh * 0.4;
+  const svg = $('sheet');
+  svg.setAttribute('viewBox', `${x0} ${y0} ${W} ${H}`);
+  $('paper').style.setProperty('--realw', (W * 96 / 25.4) + 'px');
+  let s = '';
+  if (state.rules) {
+    for (let i = 0; i <= shown; i++) s += `<line class="rule" x1="${x0}" x2="${x0 + W}" y1="${i * lh}" y2="${i * lh}" stroke-width="0.18"/>`;
+    s += `<line class="margin" x1="-6" x2="-6" y1="${y0}" y2="${y0 + H}" stroke-width="0.22"/>`;
+  }
+  d.lines.forEach((line, i) => {
+    if (line === null) s += `<rect class="todo" x="0" y="${(i + 1) * lh - lh * 0.32}" width="${Math.min(state.style.max_width, 120)}" height="${lh * 0.28}" rx="${lh * 0.14}"/>`;
+  });
+  const sw = Math.max(0.28, Math.min(0.55, state.engine === 'font' ? state.font.size * 0.2 : state.style.letter_size * 0.16));
+  s += `<g class="ink" stroke-width="${sw.toFixed(2)}">` + d.lines.filter(Boolean).flat().map(p => `<path d="${p}"/>`).join('') + '</g>';
+  svg.innerHTML = s;
+  const empty = $('empty');
+  empty.hidden = !!(d.strokes || d.missing);
+  empty.innerHTML = '<b>Nothing written yet</b>Type in the text box and the writing appears here.';
+  const inkW = Math.round(d.ink_width), inkH = Math.round(n * lh);
+  $('stats').innerHTML = `<span class="chip"><b>${n}</b> line${n === 1 ? '' : 's'}</span><span class="chip"><b>${inkW} × ${inkH}</b> mm</span><span class="chip"><b>${d.strokes}</b> pen strokes</span>`;
+  $('skipped').textContent = d.skipped.length ? 'The model can’t write these, skipped: ' + d.skipped.join(' ') : '';
+}
+
+function toast(title, html, error) {
+  const t = $('toast');
+  t.className = error ? 'show error' : 'show';
+  t.innerHTML = `<h4>${title}</h4><div>${html || ''}</div>`;
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), error ? 7000 : 10000);
+  return t;
+}
+function revealButton(t, name) {
+  t.insertAdjacentHTML('beforeend', '<div class="row2"><button>Show in Finder</button></div>');
+  t.querySelector('.row2 button').onclick = () => api('/reveal', { name });
+}
+
+async function save() {
+  try {
+    const r = await api('/save', { text: state.text, style: state.style, engine: state.engine, font: state.font, split: state.split, name: state.name });
+    const items = r.files.map(f => `<li>${f.name}${r.files.length > 1 ? `, ${Math.round(f.offset)} mm down` : ''}</li>`).join('');
+    const t = toast(r.files.length > 1 ? `Saved ${r.files.length} files` : 'Saved', `<ul>${items}</ul>` +
+      (state.split ? '<div class="muted">In BambuPlot: Image → Vector outlines, don’t resize. The top edge of each file is the rule above its first line.</div>' : ''));
+    revealButton(t, r.files[0].name);
+  } catch (e) { toast('Could not save', e.message, true); }
+}
+
+function savePng() {
+  const svg = $('sheet'), vb = svg.viewBox.baseVal, scale = 12;
+  const clone = svg.cloneNode(true);
+  const css = getComputedStyle(document.documentElement);
+  clone.setAttribute('width', vb.width * scale); clone.setAttribute('height', vb.height * scale);
+  clone.querySelectorAll('.todo').forEach(r => r.remove());
+  clone.querySelectorAll('.ink').forEach(g => { g.setAttribute('stroke', css.getPropertyValue('--pen').trim()); g.setAttribute('fill', 'none'); g.setAttribute('stroke-linecap', 'round'); g.setAttribute('stroke-linejoin', 'round'); });
+  clone.querySelectorAll('.rule').forEach(l => l.setAttribute('stroke', css.getPropertyValue('--rule').trim()));
+  clone.querySelectorAll('.margin').forEach(l => l.setAttribute('stroke', css.getPropertyValue('--margin').trim()));
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = vb.width * scale; c.height = vb.height * scale;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = css.getPropertyValue('--paper').trim(); ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0);
+    c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = (state.name || 'handwriting') + '.png'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); });
+  };
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(clone));
+}
+
+async function logo() {
+  try {
+    const d = await api('/logo', {});
+    const svg = $('logo');
+    svg.innerHTML = `<g fill="none" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round">${d.paths.map(p => `<path d="${p}"/>`).join('')}</g>`;
+    const bb = svg.getBBox();
+    svg.setAttribute('viewBox', `${bb.x - 1} ${bb.y - 1} ${bb.width + 2} ${bb.height + 2}`);
+  } catch (e) {}
+}
+
+async function waitForModel() {
+  for (;;) {
+    try {
+      const s = await api('/status');
+      if (s.error) { $('state').className = 'state stale'; $('state').textContent = 'The model failed to load: ' + s.error; return; }
+      if (s.ready) { ready = true; render(); return; }
+    } catch (e) {}
+    await new Promise(r => setTimeout(r, 700));
+  }
+}
+
+/* ---------- saved handwriting styles (shared with the Plotter) ---------- */
+let styles = [];
+const escH = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function styleMatches(st) {
+  if (st.engine !== state.engine) return false;
+  const a = state.engine === 'font' ? state.font : state.style, b = state.engine === 'font' ? st.font : st.style;
+  return Object.keys(b).every(k => a[k] == b[k]);
+}
+function paintStyles() {
+  const p = $('style-pick'), hit = styles.find(styleMatches);
+  p.innerHTML = `<option value="">${styles.length ? 'Unsaved settings' : 'No saved styles yet'}</option>` +
+    styles.map(st => `<option value="${escH(st.name)}">${escH(st.name)} · ${st.engine === 'font' ? 'font' : 'AI model'}</option>`).join('');
+  p.value = hit ? hit.name : '';
+  $('style-del').hidden = !hit;
+  p.disabled = !styles.length;
+}
+async function loadStyles() { styles = await api('/styles').catch(() => []); paintStyles(); }
+function useStyle(name) {
+  const st = styles.find(x => x.name === name); if (!st) return;
+  state.engine = st.engine === 'font' ? 'font' : 'model';
+  state.style = { ...defaults.style, ...st.style };
+  state.font = { ...defaults.font, ...st.font };
+  paintAll(); changed(); paintStyles();
+}
+function askName() {
+  const hit = styles.find(styleMatches);
+  $('style-name').value = hit ? hit.name : '';
+  $('style-name-row').hidden = false; $('style-note').hidden = true; $('style-name').focus(); $('style-name').select();
+}
+async function saveStyle() {
+  const name = $('style-name').value.trim();
+  if (!name) { $('style-name').focus(); return; }
+  try {
+    styles = await api('/styles', { name, engine: state.engine, style: state.style, font: state.font });
+    $('style-name-row').hidden = true;
+    $('style-note').hidden = false; $('style-note').textContent = `Saved as “${name}”. In the Plotter, pick it for any writing on the sheet.`;
+    paintStyles();
+  } catch (e) { toast('Could not save the style', e.message, true); }
+}
+let delArmed = 0;
+async function deleteStyle() {
+  const name = $('style-pick').value; if (!name) return;
+  if (Date.now() - delArmed > 3000) { delArmed = Date.now(); $('style-del').textContent = 'Delete?'; setTimeout(() => { $('style-del').textContent = 'Delete'; }, 3000); return; }
+  styles = await api('/styles/delete', { name }).catch(() => styles);
+  $('style-del').textContent = 'Delete'; delArmed = 0; paintStyles();
+}
+
+async function init() {
+  defaults = await api('/defaults');
+  if (defaults.font_name) $('font-name').textContent = defaults.font_name;
+  const saved = await api('/settings').catch(() => ({}));
+  Object.assign(state, saved);
+  state.style = { ...defaults.style, ...Object.fromEntries(Object.entries(saved.style || {}).filter(([k]) => k in defaults.style)) };
+  state.font = { ...defaults.font, ...Object.fromEntries(Object.entries(saved.font || {}).filter(([k]) => k in defaults.font)) };
+  state.engine = saved.engine === 'font' ? 'font' : 'model';
+  if (typeof saved.text !== 'string') state.text = 'Dear Alex,\nThank you for the lovely gift. The quick brown fox jumps over the lazy dog.\nBest wishes, Jo';
+  $('face').innerHTML = (defaults.faces || [{ id: '', name: defaults.font_name || 'Built-in font' }])
+    .map(f => `<option value="${escH(f.id)}">${escH(f.name)}${f.id ? '' : ' (built in)'}</option>`).join('');
+  $('face').onchange = e => { state.font.face = e.target.value; changed(); };
+  if (state.font.face && ![...$('face').options].some(o => o.value === state.font.face)) state.font.face = '';
+  buildSliders();
+  paintAll();
+  logo();
+  showState(null);
+  waitForModel();
+  if (state.engine === 'font') render();
+  $('engine').onclick = e => { const v = e.target.dataset.v; if (!v || v === state.engine) return; setEngine(v); changed(); paintStyles(); };
+  loadStyles();
+  $('style-pick').onchange = e => { if (e.target.value) useStyle(e.target.value); else paintStyles(); };
+  $('style-save').onclick = askName;
+  $('style-name-ok').onclick = saveStyle;
+  $('style-name-cancel').onclick = () => { $('style-name-row').hidden = true; };
+  $('style-name').onkeydown = e => { if (e.key === 'Enter') saveStyle(); if (e.key === 'Escape') $('style-name-row').hidden = true; };
+  $('style-del').onclick = deleteStyle;
+
+  $('text').addEventListener('input', e => { state.text = e.target.value; changed(); });
+  $('seed').addEventListener('input', e => { state.style.seed = Math.max(0, parseInt(e.target.value || '0', 10)); changed(); });
+  $('dice').onclick = () => { state.style.seed = Math.floor(Math.random() * 999999) + 1; $('seed').value = state.style.seed; changed(); };
+  $('generate').onclick = generate;
+  $('reset').onclick = () => { state.style = { ...defaults.style }; if (state.engine === 'font') state.font = { ...defaults.font }; paintAll(); changed(); };
+  $('split').onchange = e => { state.split = e.target.checked; changed(true); };
+  $('name').oninput = e => { state.name = e.target.value; changed(true); };
+  $('save').onclick = save;
+  $('png').onclick = savePng;
+  $('to-plotter').onclick = async () => {
+    try {
+      const r = await api('/render', { text: state.text, style: state.style, engine: state.engine, font: state.font });
+      if (r.missing) { toast('Not written yet', 'The writing is not finished. Wait a moment, or press Write it now, then send it again.', true); return; }
+      const hit = styles.find(styleMatches);
+      await api('/plot/add', { text: state.text, style: state.style, engine: state.engine, font: state.font, style_name: hit ? hit.name : '' });
+      location.href = '/plotter';
+    } catch (e) { toast('Could not send it', e.message, true); }
+  };
+  $('ptabs').onclick = e => { const v = e.target.closest('button')?.dataset.v; if (v) { showPanel(v); changed(true); } };
+  $('ptabs').onkeydown = e => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    const bs = [...$('ptabs').children], i = bs.findIndex(b => b.classList.contains('on'));
+    const n = bs[(i + (e.key === 'ArrowRight' ? 1 : bs.length - 1)) % bs.length]; showPanel(n.dataset.v); n.focus(); changed(true);
+  };
+  showPanel(['hand', 'look', 'page'].includes(state.panel) ? state.panel : 'hand');
+  $('lines-toggle').onclick = e => { const v = e.target.dataset.v; if (!v) return; state.rules = v === '1'; setSeg('lines-toggle', v); if (last) draw(last); changed(true); };
+  $('zoom').onclick = e => { const v = e.target.dataset.v; if (!v) return; state.zoom = v; setSeg('zoom', v); $('paper').classList.toggle('real', v === 'real'); changed(true); };
+  $('paper').classList.toggle('real', state.zoom === 'real');
+  $('theme').onchange = e => { state.theme = e.target.value || null; applyTheme(); changed(true); };
+  document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); generate(); }
+  });
+}
+init();
+</script>
+</body>
+</html>

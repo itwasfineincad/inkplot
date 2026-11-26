@@ -1,0 +1,2 @@
+#!/bin/bash
+exec "$HOME/.venvs/handwriting-synthesis/bin/python" "$(cd "$(dirname "$0")" && pwd)/magnets.py" "$@"

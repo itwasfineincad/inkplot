@@ -1,0 +1,50 @@
+# InkPrint: what goes into the public repository.
+
+# macOS and Python junk
+.DS_Store
+._*
+__pycache__/
+*.pyc
+
+# Personal: never publish
+# a font drawn from the owner's own handwriting
+handwriting/handfont.py
+# cached writing, keyed by the texts you wrote
+handwriting/cache/
+# your Write page text and settings
+handwriting/ui_settings.json
+handwriting/styles.json
+handwriting/fonts/
+# your sheets and print jobs
+handwriting/plot_state.json
+handwriting/uploads/
+handwriting/out/
+# your machine's pen offset (calibration.example.json is the template)
+handwriting-synthesis/calibration.json
+handwriting-synthesis/magnets.json
+handwriting-synthesis/logs/
+.release-backup/
+.claude/*
+!.claude/skills/
+CLAUDE.md
+
+# The AI model comes from github.com/sjvasquez/handwriting-synthesis, which has no
+# licence, so it is not copied here: setup/install.sh downloads it and applies
+# setup/model.patch. Only our own files in that folder are published.
+handwriting-synthesis/*
+!handwriting-synthesis/plotcheck.py
+!handwriting-synthesis/plotcheck
+!handwriting-synthesis/calibrate.py
+!handwriting-synthesis/calibrate
+!handwriting-synthesis/magnets.py
+!handwriting-synthesis/magnets
+!handwriting-synthesis/my_hand.py
+!handwriting-synthesis/handwrite.py
+!handwriting-synthesis/calibration.example.json
+.taste-skill/
+# skill tests: their inputs (an Apple system font, a simulated scan) are not ours to publish,
+# so the tests stay local
+.claude/skills/*/evals/
+
+# graphify knowledge graph (local only)
+graphify-out/

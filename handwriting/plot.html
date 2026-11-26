@@ -1,0 +1,1822 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InkPrint · Plotter</title>
+<meta name="description" content="Lay out handwriting and line drawings on paper and save checked G-code for a 3D printer with a pen holder.">
+<meta name="theme-color" content="#e6dbc7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#13182a" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/app.css">
+<style>
+/* Plotter page layout and canvas; shared parts are in /static/app.css */
+.help.warnnote b { color: var(--warn); }
+:root {
+  --bed: #2a2a28; --bed-line: #3a3a37;
+  --no: rgba(196, 64, 48, .14); --mag: #3b6fc4;
+  --head: rgba(91, 91, 102, .2); --head-line: rgba(91, 91, 102, .7); --holder: #55554f; --part2: #127a6e;
+}
+body { display: grid; grid-template-columns: 304px 1fr 344px; grid-template-rows: 56px 1fr; grid-template-areas: "top top top" "left main right"; }
+.appbar { grid-area: top; }
+aside { min-height: 0; background: var(--bg); }
+aside.left { grid-area: left; border-right: 1px solid var(--line); overflow-y: auto; padding: 4px 20px 20px; }
+aside.right { grid-area: right; border-left: 1px solid var(--line); display: flex; flex-direction: column; }
+.right__tabs { padding: 16px 20px 0; }
+.right__scroll { flex: 1; overflow-y: auto; padding: 4px 20px 16px; }
+.right__foot { padding: 12px 20px 16px; border-top: 1px solid var(--line); }
+main { grid-area: main; position: relative; min-width: 0; min-height: 0; background: var(--desk); overflow: hidden; }
+
+/* add tools */
+.adds { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.adds button { height: 40px; justify-content: flex-start; padding: 0 10px; font-size: 14px; line-height: 16px; white-space: normal; text-align: left; }
+.adds button svg { width: 18px; height: 18px; }
+.adds button.span2 { grid-column: span 2; }
+
+/* layers */
+.layers { list-style: none; margin: 0 -8px; padding: 0; }
+.layers li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--r-sm); cursor: pointer; font-size: 14px; transition: background-color var(--m-out) var(--ease); }
+.layers li:hover { background: var(--tint); }
+.layers li.on { background: var(--tint-2); }
+.layers li .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layers li .badge { font-size: 13px; padding: 0 6px; border-radius: 4px; background: var(--amber-soft); color: var(--amber); font-weight: 500; }
+.layers li .badge.err { background: var(--warn-soft); color: var(--warn); }
+.layers li button { height: 28px; width: 28px; padding: 0; background: transparent; color: var(--muted); }
+.layers li button:hover { color: var(--ink); background: var(--tint); transform: none; }
+.layers li.off .nm { opacity: .5; text-decoration: line-through; }
+.empty-list { color: var(--muted); font-size: 13px; padding: 4px 0; }
+#props .grid2 { gap: 12px; }
+#props .row.mt button { flex: 1; }
+
+/* print panel */
+.status { border-radius: var(--r-sm); padding: 10px 12px; font-size: 13px; line-height: 18px; margin-bottom: 16px; }
+.status b { display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 20px; font-weight: 600; }
+.status b i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+.status ul { margin: 6px 0 0; padding-left: 18px; }
+.status li { margin-bottom: 4px; }
+.status.ok { background: var(--ok-soft); color: var(--ok); }
+.status.bad { background: var(--warn-soft); color: var(--warn); }
+.status.busy { background: var(--tint); color: var(--muted); }
+.status.busy b i { animation: pulse 1.2s var(--ease) infinite; }
+.status .warn { color: var(--amber); }
+@keyframes pulse { 50% { opacity: .25; } }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin: 0 0 16px; }
+.stat span { display: block; font-size: 13px; line-height: 18px; color: var(--muted); }
+.stat b { font-size: 18px; line-height: 28px; font-variant-numeric: tabular-nums; font-weight: 600; letter-spacing: -0.01em; }
+.save-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.zread { font-size: 13px; line-height: 18px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.zread b { color: var(--ink); font-weight: 600; }
+.subh h2 { font-size: 14px; line-height: 20px; }
+.subh { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+.jobs { list-style: none; margin: 0 -8px 4px; padding: 0; }
+.jobs li { display: grid; grid-template-columns: 18px 1fr auto; gap: 4px 8px; align-items: start; padding: 8px; border-radius: var(--r-sm); font-size: 14px; }
+.jobs li.next { background: var(--tint); }
+.jobs li.done .t { text-decoration: line-through; opacity: .55; }
+.jobs li.bad { color: var(--warn); }
+.jobs li .t b { font-weight: 600; }
+.jobs li .t small { color: var(--muted); }
+.jobs li .how { grid-column: 2 / 4; font-size: 13px; line-height: 18px; }
+.jobs li input { margin: 2px 0 0; }
+.jobs li button { height: 32px; width: 32px; padding: 0; }
+.legend { display: flex; gap: 16px; font-size: 13px; color: var(--muted); margin: 0 0 8px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.legend i.l-a { background: var(--pen); }
+.legend i.l-b { background: var(--part2); }
+.place { margin-top: 12px; border-radius: var(--r-sm); background: var(--tint); padding: 10px 12px; font-size: 13px; line-height: 18px; }
+.place.flush { margin: 0 0 16px; }
+.place b.h { display: block; margin-bottom: 4px; font-size: 14px; line-height: 20px; font-weight: 600; }
+.place ol { margin: 0; padding-left: 18px; }
+.place li { margin-bottom: 4px; }
+.place .why { color: var(--muted); margin-top: 6px; }
+.place .warn { color: var(--amber); margin-top: 6px; }
+.dest-row select { flex: 1; }
+
+/* canvas */
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: default; }
+#cv.panning { cursor: grabbing; }
+#cv .bed { fill: var(--bed); stroke: var(--bed-line); }
+#cv .paper { fill: var(--paper); filter: drop-shadow(0 1px 2px rgba(20, 16, 8, .2)); }
+#cv .offbed { fill: url(#hatch-off); }
+#cv .noreach { fill: var(--no); stroke: none; }
+#cv .reach { fill: none; stroke: #2f6b3a; stroke-dasharray: 4 3; }
+#cv .zone { fill: rgba(59, 111, 196, .2); stroke: var(--mag); }
+#cv .magnet { fill: var(--mag); opacity: .85; }
+#cv .banned { fill: var(--head); stroke: var(--head-line); stroke-dasharray: 3 2; }
+#cv text { user-select: none; -webkit-user-select: none; pointer-events: none; font-family: var(--font-text); }
+#cv .tick { stroke: #b3a993; }
+#cv .ticklbl { fill: #7a715f; font-size: 3px; }
+#cv .lbl { fill: #a3361f; font-size: 3.4px; font-weight: 600; }
+#cv .lbl.dim { fill: #6d6455; font-weight: 500; }
+#cv .lbl.head { fill: #55554f; }
+#cv .lbl.b { fill: #2a5ea8; }
+#cv .lbl.a { fill: #2f6b3a; }
+#cv .rule { stroke: var(--rule); }
+#cv .item .ink { fill: none; stroke: var(--pen); stroke-linecap: round; stroke-linejoin: round; }
+#cv .item .hit { fill: transparent; cursor: move; }
+#cv .item.err .hit { fill: rgba(196, 64, 48, .08); stroke: #a3361f; stroke-dasharray: 3 2; }
+#cv.simming .item .ink { opacity: .12; }
+#cv .cut { fill: none; stroke: #d2402f; stroke-linecap: round; }
+#cv .travel { fill: none; stroke: #d48a1e; stroke-dasharray: 3 3; opacity: .85; }
+#cv .sel { fill: none; stroke: var(--p-ink); }
+#cv .handle { fill: #fffef9; stroke: var(--p-ink); cursor: nwse-resize; }
+#cv .handle.rot { cursor: grab; fill: var(--p-ink); }
+#cv .handle.ex { cursor: ew-resize; }
+#cv .handle.ey { cursor: ns-resize; }
+#cv .guide { stroke: #d2402f; stroke-dasharray: 2 2; }
+#cv .simdone { fill: none; stroke: var(--pen); stroke-linecap: round; stroke-linejoin: round; }
+#cv .simtravel { stroke: #d48a1e; stroke-dasharray: 2 2; }
+#cv .pen { fill: #d2402f; }
+#cv .nozzle { fill: none; stroke: var(--holder); }
+#cv .holder { stroke: var(--holder); }
+#cv .reachb { fill: none; stroke: #2a5ea8; stroke-dasharray: 4 3; }
+#cv .passb { fill: none; stroke: var(--part2); stroke-linecap: round; stroke-linejoin: round; }
+#cv .magnet-real { fill: #2f5fb0; stroke: #fffef9; }
+#cv .dimline { stroke: var(--p-ink); fill: none; }
+#cv .dimlbl { fill: var(--p-ink); font-weight: 700; }
+#cv .bedline { fill: none; stroke: #77736a; stroke-dasharray: 3 2; }
+
+/* things floating on the canvas: one look, the ground colour with a hairline */
+.float { background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: var(--r-md); }
+.hud { position: absolute; left: 12px; bottom: 12px; font-size: 13px; color: var(--muted); padding: 4px 10px; font-variant-numeric: tabular-nums; pointer-events: none; border-radius: var(--r-sm); }
+.zoombox { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 2px; padding: 2px; }
+.zoombox button { height: 32px; min-width: 36px; padding: 0 8px; font-size: 13px; background: transparent; }
+.zoombox button:hover { background: var(--tint); transform: none; }
+.hint { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); text-align: center; color: var(--muted); pointer-events: none; font-size: 14px; line-height: 20px; }
+.hint b { display: block; color: var(--ink); font-size: 18px; line-height: 28px; font-weight: 600; margin-bottom: 4px; }
+.drop { position: absolute; inset: 12px; border: 2px dashed var(--ink); border-radius: var(--r-lg); background: color-mix(in oklab, var(--bg) 85%, transparent); display: grid; place-items: center; font-weight: 600; font-size: 16px; pointer-events: none; }
+.simbar { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 8px 12px; width: min(680px, calc(100% - 32px)); z-index: var(--z-float); }
+.simbar input[type=range] { flex: 1; }
+.simbar .time { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); min-width: 96px; text-align: center; }
+.sheets { position: absolute; left: 12px; top: 12px; display: flex; gap: 4px; z-index: var(--z-float); flex-wrap: wrap; max-width: calc(100% - 24px); }
+.sheets button { height: 32px; padding: 0 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.sheets button:hover { background: color-mix(in oklab, var(--bg) 86%, var(--ink)); }
+.sheets button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.sheets button .x { margin-left: 2px; opacity: .7; padding: 0 2px; }
+.sheets button .x:hover { opacity: 1; }
+.placebar { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); z-index: var(--z-float); display: flex; align-items: center; gap: 12px; padding: 4px 4px 4px 14px; font-size: 14px; max-width: calc(100% - 24px); white-space: nowrap; }
+#placebar-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+#cv.simming ~ .placebar { display: none; }
+.placebar b { font-weight: 600; }
+
+/* dialogs */
+#lib { width: 880px; }
+#lib .db { max-height: 70vh; }
+#lib-q { width: 220px; }
+.libgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); gap: 12px; }
+.libgrid button { flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 8px; gap: 8px; height: auto; white-space: normal; text-align: left; border-radius: var(--r-md); }
+.libgrid .th { height: 116px; border-radius: var(--r-sm); background: #fffef9 center/contain no-repeat; display: grid; place-items: center; color: #6d6455; font-size: 13px; }
+.libgrid .t { font-size: 13px; line-height: 18px; font-weight: 500; }
+.libgrid .w { font-size: 13px; line-height: 18px; color: var(--muted); font-weight: 400; }
+#cal { width: 600px; }
+.calstep { padding: 16px 0; border-top: 1px solid var(--line); }
+.calstep h4 { margin: 0 0 8px; font-size: 15px; line-height: 22px; display: flex; gap: 10px; align-items: center; }
+.calstep h4 i { font-style: normal; width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 600; }
+.calstep p { margin: 0 0 12px; font-size: 14px; line-height: 21px; max-width: 62ch; }
+.calres { font-size: 14px; margin-top: 8px; }
+#pagedlg { width: 540px; }
+#pagedlg .place, #pagedlg .note { margin: 0 0 12px; }
+#hwdlg { width: 520px; }
+.hwtext { width: 100%; min-height: 120px; resize: vertical; }
+.stylepick { display: grid; gap: 6px; margin-top: 12px; }
+.stylepick select { width: 100%; }
+.busy-note { font-size: 13px; color: var(--muted); }
+.tabs button.alert::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); margin-left: 2px; }
+#ask { width: 420px; }
+#ask p { margin: 0 0 20px; font-size: 15px; line-height: 22px; color: var(--muted); white-space: pre-line; max-height: 50vh; overflow-y: auto; }
+@media (max-width: 1180px) { body { grid-template-columns: 280px 1fr 312px; } .toggle { padding: 0 8px; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#stage">Skip to the sheet</a>
+<header class="appbar">
+  <a class="brand" href="/" aria-label="InkPrint, back to Write"><svg id="logo" viewBox="0 0 10 10" role="img" aria-label="InkPrint"></svg></a>
+  <nav class="pages" aria-label="Pages"><a href="/">Write</a><a href="/plotter" aria-current="page">Plotter</a><a href="/fonts">Fonts</a></nav>
+  <div class="appbar__tools">
+    <button class="ghost icon" id="undo" title="Undo (⌘Z)" aria-label="Undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+    <button class="ghost icon" id="redo" title="Redo (⇧⌘Z)" aria-label="Redo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+    <span class="sep"></span>
+    <button type="button" class="toggle" id="t-safe" title="Show where the pen can and can't go">Safe area</button>
+    <button type="button" class="toggle" id="t-travel" title="Show the moves between strokes">Travel</button>
+    <button type="button" class="toggle" id="t-rules" title="Guides for ruled lines (writing snaps to them)">Ruled lines</button>
+    <span class="sep"></span>
+    <button id="play" title="Watch the plot happen (P)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Preview</button>
+    <label class="theme-pick"><select id="theme" aria-label="Theme" title="Theme"><option value="">Auto theme</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+  </div>
+</header>
+
+<aside class="left" aria-label="Sheet contents">
+  <section class="sec">
+    <div class="sec__head"><h2>Add to the sheet</h2></div>
+    <div class="adds">
+      <button id="a-write"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c3-1 4-9 7-9s1 9 4 9 3-5 5-5 2 2 2 2"/></svg>Handwriting</button>
+      <button id="a-page" title="Lay the Write page's text out on ruled lines, over as many sheets as it needs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l4 4v16H6z"/><path d="M9 10h7M9 14h7M9 18h5"/></svg>Page of writing</button>
+      <button id="a-lib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7v10l8 5 8-5V7z"/><path d="M12 22V12M4 7l8 5 8-5"/></svg>Drawing</button>
+      <button id="a-up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0-4 4m4-4 4 4M5 21h14"/></svg>Upload SVG</button>
+      <button id="a-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></svg>Label</button>
+      <button id="a-lines"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Ruled lines</button>
+      <button id="a-rect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="1"/></svg>Frame</button>
+      <button id="a-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>Circle</button>
+    </div>
+    <input type="file" id="file" accept=".svg,image/svg+xml" multiple hidden>
+  </section>
+
+  <section class="sec">
+    <div class="sec__head"><h2>On this sheet</h2><span id="count" class="note-inline"></span></div>
+    <ul class="layers" id="layers"></ul>
+  </section>
+
+  <section class="sec" id="props" hidden>
+    <div class="sec__head"><h2 id="p-title">Selected</h2>
+      <span class="row">
+        <button class="ghost icon" id="p-dup" title="Duplicate (⌘D)" aria-label="Duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button>
+        <button class="ghost icon danger" id="p-del" title="Delete (⌫)" aria-label="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+      </span>
+    </div>
+    <div class="grid2">
+      <div class="f"><label for="p-left">From left edge</label><div class="unit"><input type="number" id="p-left" step="0.5"><em>mm</em></div></div>
+      <div class="f"><label for="p-top">From top edge</label><div class="unit"><input type="number" id="p-top" step="0.5"><em>mm</em></div></div>
+      <div class="f"><label for="p-w">Width</label><div class="unit"><input type="number" id="p-w" step="0.5" min="1"><em>mm</em></div></div>
+      <div class="f"><label for="p-h">Height</label><div class="unit"><input type="number" id="p-h" step="0.5" min="1"><em>mm</em></div></div>
+      <div class="f"><label for="p-rot">Rotation</label><div class="unit"><input type="number" id="p-rot" step="1"><em>°</em></div></div>
+      <div class="f"><label>Turn, mirror, lock</label><div class="row">
+        <button class="icon" id="p-r90" title="Turn 90° (R)" aria-label="Turn 90 degrees"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
+        <button class="icon" id="p-flip" title="Mirror" aria-label="Mirror"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M8 7l-5 5 5 5V7zM16 7l5 5-5 5V7z"/></svg></button>
+        <button class="icon" id="p-lock" title="Keep proportions" aria-label="Keep proportions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button>
+      </div></div>
+    </div>
+    <div id="p-extra"></div>
+    <div class="row mt">
+      <button id="p-fit" title="As big as fits in the drawable area">Fit to area</button>
+      <button id="p-center">Centre</button>
+    </div>
+    <div class="note" id="p-cut" hidden></div>
+  </section>
+</aside>
+
+<main id="stage" tabindex="-1">
+  <div class="sheets" id="sheets"></div>
+  <div class="placebar float" id="placebar" hidden><span id="placebar-text"></span><span class="seg" id="viewpart"><button data-v="a" class="on">Part 1</button><button data-v="b">Part 2</button></span></div>
+  <svg id="cv" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="hatch-off" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <rect width="4" height="4" fill="#d9ccb3"/><line x1="0" y1="0" x2="0" y2="4" stroke="#c7b89c" stroke-width="1.2"/>
+      </pattern>
+      <pattern id="hatch-no" width="3.2" height="3.2" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <line x1="0" y1="0" x2="0" y2="3.2" stroke="rgba(214,74,74,.35)" stroke-width=".8"/>
+      </pattern>
+    </defs>
+    <g id="g-stage"></g>
+    <g id="g-rules"></g>
+    <g id="g-items"></g>
+    <g id="g-passb"></g>
+    <g id="g-cut"></g>
+    <g id="g-travel"></g>
+    <g id="g-sim"></g>
+    <g id="g-sel"></g>
+  </svg>
+  <div class="hint" id="hint" hidden><b>Nothing on the sheet yet</b>Add a drawing, some handwriting or a label from the left,<br>or drop an SVG file here.</div>
+  <div class="drop" id="drop" hidden>Drop SVG files to add them</div>
+  <div class="hud float" id="hud">–</div>
+  <div class="zoombox float">
+    <button id="z-out" title="Zoom out" aria-label="Zoom out">−</button>
+    <button id="z-fit" title="Fit the sheet (0)">Fit</button>
+    <button id="z-real" title="Show at real size (1)">1:1</button>
+    <button id="z-in" title="Zoom in" aria-label="Zoom in">+</button>
+  </div>
+  <div class="simbar float" id="simbar" hidden>
+    <button class="icon" id="s-play" title="Play or pause (space)" aria-label="Play or pause"></button>
+    <input type="range" id="s-pos" min="0" max="1000" value="0" step="1">
+    <span class="time" id="s-time">0:00 / 0:00</span>
+    <div class="seg" id="s-speed"><button data-v="1">1×</button><button data-v="10" class="on">10×</button><button data-v="50">50×</button><button data-v="250">250×</button></div>
+    <button class="ghost icon" id="s-close" title="Close preview (Esc)" aria-label="Close preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+</main>
+
+<aside class="right" aria-label="Print and settings">
+  <div class="right__tabs">
+    <div class="seg tabs" id="rtabs" role="tablist" aria-label="Panels">
+      <button data-v="print" class="on" role="tab" aria-selected="true">Print</button><button data-v="paper" role="tab" aria-selected="false">Paper</button><button data-v="machine" role="tab" aria-selected="false">Machine</button>
+    </div>
+  </div>
+  <div class="right__scroll">
+    <div class="tabpanel" data-tab="print" role="tabpanel">
+      <section class="sec">
+        <div class="status busy" id="status" role="status"><b><i></i>Loading…</b></div>
+        <div class="place flush" id="placement-top" hidden></div>
+        <div class="stats">
+          <div class="stat"><span>Time</span><b id="st-time">–</b></div>
+          <div class="stat"><span>Strokes</span><b id="st-strokes">–</b></div>
+          <div class="stat"><span>Ink</span><b id="st-ink">–</b></div>
+          <div class="stat"><span>Magnet lifts</span><b id="st-hops">–</b></div>
+        </div>
+      </section>
+      <section class="sec">
+        <div class="subh"><h2>Print jobs</h2><span class="seg" id="kind" role="group" aria-label="File type"><button data-v="plot" class="on" title="The real plot">Plot</button><button data-v="rehearsal" title="The same moves with the pen 10 mm higher, to watch first">Pen up</button><button data-v="outline" title="Pen up, slowly goes round the drawing">Outline</button></span></div>
+        <div class="legend" id="legend" hidden><span><i class="l-a"></i>Part 1</span><span><i class="l-b"></i>Part 2, sheet turned round</span></div>
+        <ul class="jobs" id="jobs"></ul>
+        <details class="steps">
+          <summary>How printing works</summary>
+          <ol>
+            <li><b>Home</b> from the printer screen with the holder <b>off</b>, then clip it on.</li>
+            <li>Print the jobs in order, ticking each one off. The highlighted job says what to do with the paper first.</li>
+            <li><b>Part 2</b> of a sheet is printed with the same sheet <b>turned round</b> (top edge at the front), so the pen can reach the bottom of the page.</li>
+            <li>New drawing? Save the <b>Pen up</b> version too and watch it first.</li>
+            <li>When you're done, take the holder <b>off</b> before homing again.</li>
+          </ol>
+        </details>
+      </section>
+      <section class="sec">
+        <div class="f"><label for="name">File name</label><div class="unit"><input type="text" id="name" spellcheck="false"><em>.gcode</em></div></div>
+        <div class="f mt"><label for="dest">Save to</label><div class="row dest-row"><select id="dest"></select><button id="clean" hidden title="Remove the hidden files macOS puts on the card">Clean card</button><button id="eject" hidden title="Eject the card so you can take it out safely">Eject</button></div></div>
+      </section>
+    </div>
+
+    <div class="tabpanel" data-tab="paper" role="tabpanel" hidden>
+      <section class="sec">
+        <div class="sec__head"><h2>Sheet size</h2></div>
+        <div class="fields">
+          <label for="pp-w">Width<small>measure your sheet</small></label><div class="unit"><input type="number" id="pp-w" step="0.5"><em>mm</em></div>
+          <label for="pp-h">Length</label><div class="unit"><input type="number" id="pp-h" step="0.5"><em>mm</em></div>
+        </div>
+        <label class="switch mt"><input type="checkbox" id="two-pass"><span class="knob"></span><span>Turn the sheet round to reach the bottom<small>Writes the bottom of the page as part 2</small></span></label>
+      </section>
+      <section class="sec">
+        <label class="switch"><input type="checkbox" id="ln-on"><span class="knob"></span><span><b>Write on lined paper</b><small>Measure your paper's lines and it works out where to put the sheet.</small></span></label>
+        <div id="ln-box">
+          <div class="fields mt">
+            <label for="ln-first">First line<small>mm below the top edge</small></label><div class="unit"><input type="number" id="ln-first" step="0.5"><em>mm</em></div>
+            <label for="ln-bottom">Last line<small>mm above the bottom edge</small></label><div class="unit"><input type="number" id="ln-bottom" step="0.5"><em>mm</em></div>
+            <label for="ln-left">Margin line<small>mm from the left edge</small></label><div class="unit"><input type="number" id="ln-left" step="0.5"><em>mm</em></div>
+            <label for="ln-right">Lines end<small>mm from the right edge</small></label><div class="unit"><input type="number" id="ln-right" step="0.5"><em>mm</em></div>
+            <label for="ln-gap">Line spacing</label><div class="unit"><input type="number" id="ln-gap" step="0.5" min="3"><em>mm</em></div>
+          </div>
+          <div class="place" id="placement"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="tabpanel" data-tab="machine" role="tabpanel" hidden>
+      <section class="sec">
+        <div class="sec__head"><h2>Calibration</h2><button class="small" id="cal-open">Calibrate…</button></div>
+        <div id="calstate" class="small"></div>
+      </section>
+      <section class="sec">
+        <div class="sec__head"><h2>Pen</h2></div>
+        <div class="fields">
+          <label for="m-pen">Pen sticks out<small>below the nozzle tip</small></label><div class="unit"><input type="number" id="m-pen" step="0.5" min="3"><em>mm</em></div>
+          <label for="m-surface">Pad under the paper<small>0 if none</small></label><div class="unit"><input type="number" id="m-surface" step="0.5" min="0"><em>mm</em></div>
+        </div>
+        <div class="range mt" data-k="pressure" data-min="0" data-max="1.5" data-step="0.1" data-label="Pressure" data-fmt="mm"></div>
+        <div class="range" data-k="lift" data-min="2" data-max="10" data-step="0.5" data-label="Lift between strokes" data-fmt="mm"></div>
+        <div class="zread" id="zread"></div>
+        <div class="note" id="headnote" hidden></div>
+      </section>
+      <section class="sec">
+        <div class="sec__head"><h2>Speed</h2></div>
+        <div class="range" data-k="draw_speed" data-min="300" data-max="6000" data-step="60" data-label="Drawing" data-fmt="mms"></div>
+        <div class="range" data-k="travel_speed" data-min="1200" data-max="18000" data-step="300" data-label="Moving between strokes" data-fmt="mms"></div>
+        <div class="range" data-k="z_speed" data-min="300" data-max="2400" data-step="60" data-label="Pen up and down" data-fmt="mms"></div>
+        <div class="range" data-k="dwell_ms" data-min="0" data-max="500" data-step="10" data-label="Pause after pen down" data-fmt="ms"></div>
+        <div class="range" data-k="min_stroke" data-min="0" data-max="2" data-step="0.1" data-label="Skip specks shorter than" data-fmt="mm"></div>
+        <label class="switch"><input type="checkbox" id="join"><span class="knob"></span>Join lines that touch (fewer pen lifts)</label>
+      </section>
+      <section class="sec">
+        <div class="sec__head"><h2>Magnets</h2></div>
+        <div class="fields">
+          <label for="m-msize">Corner zones<small>square, from each corner</small></label><div class="unit"><input type="number" id="m-msize" step="1" min="5"><em>mm</em></div>
+          <label for="m-mh">Magnet height<small>0 turns the zones off</small></label><div class="unit"><input type="number" id="m-mh" step="0.5" min="0"><em>mm</em></div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <div class="right__foot">
+    <button class="primary lg wide" id="save" title="⌘S">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg>
+      <span id="save-label">Save plot file</span></button>
+  </div>
+</aside>
+
+<dialog id="lib">
+  <div class="dh"><h2>Add a drawing</h2><div class="row"><input type="text" id="lib-q" placeholder="Search drawings" aria-label="Search drawings"><button id="lib-up">Upload SVG…</button><button class="ghost icon" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div></div>
+  <div class="db"><div class="libgrid" id="libgrid"></div></div>
+</dialog>
+
+<dialog id="cal">
+  <div class="dh"><h2>Calibrate the pen</h2><button class="ghost icon" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div class="db">
+    <p class="lead">The pen sits beside the nozzle, so the printer has to know how far away. Do this once, and again whenever you re-clip the holder or move the pen in it. Files go to the folder chosen under <b>Save to</b>.</p>
+    <div class="calstep">
+      <h4><i>1</i>Pen</h4>
+      <div class="fields">
+        <label for="c-pen">How far the pen tip sticks out below the nozzle tip</label><div class="unit"><input type="number" id="c-pen" step="0.5"><em>mm</em></div>
+        <label for="c-surface">Pad under the paper</label><div class="unit"><input type="number" id="c-surface" step="0.5"><em>mm</em></div>
+      </div>
+      <p>To set the pen to that length: home with the holder off, clip it on with the pen pulled up, and print the pen-height file. The paper comes up to exactly that far below the nozzle and waits 4 minutes while you slide the pen down until it just touches, then tighten it.</p>
+      <button id="c-penset">Save pen-height file</button>
+    </div>
+    <div class="calstep">
+      <h4><i>2</i>Draw a calibration cross</h4>
+      <p>Home with the holder off, clip it on, put a sheet in the back-left corner with the magnets. The nozzle goes to X128 Y180 and the pen draws a cross wherever it really is. Not sure it will clear? Print the pen-up version first.</p>
+      <div class="row wrap"><button id="c-cross">Save calibration cross</button><button id="c-air">Pen-up version (+15 mm)</button></div>
+    </div>
+    <div class="calstep">
+      <h4><i>3</i>Measure the circle's centre</h4>
+      <div class="grid2">
+        <div class="f"><label>From the paper's left edge</label><div class="unit"><input type="number" id="c-a" step="0.5"><em>mm</em></div></div>
+        <div class="f"><label>From the paper's top edge</label><div class="unit"><input type="number" id="c-b" step="0.5"><em>mm</em></div></div>
+      </div>
+      <button class="mt" id="c-measured">Save the offset and a check cross</button>
+      <div class="calres" id="c-res1"></div>
+    </div>
+    <div class="calstep">
+      <h4><i>4</i>Print the check cross</h4>
+      <p>It should land exactly where it says. Also print it after moving the pen in the holder, to check the offset hasn't changed. If it's more than about 1 mm out, measure where it landed:</p>
+      <button id="c-check">Save check cross</button><div class="mt"></div>
+      <div class="grid2">
+        <div class="f"><label>Landed from left edge</label><div class="unit"><input type="number" id="c-la" step="0.5"><em>mm</em></div></div>
+        <div class="f"><label>Landed from top edge</label><div class="unit"><input type="number" id="c-lb" step="0.5"><em>mm</em></div></div>
+      </div>
+      <button class="mt" id="c-landed">Correct the offset</button>
+      <div class="calres" id="c-res2"></div>
+    </div>
+    <details class="steps"><summary>Enter the offset by hand</summary>
+      <div class="grid2 mt">
+        <div class="f"><label>Offset X</label><div class="unit"><input type="number" id="c-ox" step="0.1"><em>mm</em></div></div>
+        <div class="f"><label>Offset Y</label><div class="unit"><input type="number" id="c-oy" step="0.1"><em>mm</em></div></div>
+      </div>
+      <button class="mt" id="c-manual">Save offset</button>
+    </details>
+  </div>
+</dialog>
+
+<dialog id="hwdlg">
+  <div class="dh"><h2>Add handwriting</h2><button class="ghost icon" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div class="db">
+    <div class="f"><label for="hw-text">Text</label><textarea id="hw-text" class="hwtext" spellcheck="true"></textarea></div>
+    <div class="stylepick"><label for="hw-style">Handwriting style</label><select id="hw-style"></select></div>
+    <p class="help mt" id="hw-where"></p>
+    <div class="row mt"><button class="primary" id="hw-go">Add to the sheet</button><span class="busy-note" id="hw-res" role="status"></span></div>
+  </div>
+</dialog>
+
+<dialog id="pagedlg">
+  <div class="dh"><h2>Write a page</h2><button class="ghost icon" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div class="db">
+    <p class="lead">Puts text onto your paper's ruled lines, sheet after sheet. The pen can't reach the top or bottom of a sheet in one go, so lines near the bottom are written after you turn the sheet round. Ruled lines it can't reach at all are left empty.</p>
+    <div class="f"><label for="pg-text">Text</label><textarea id="pg-text" class="hwtext" spellcheck="true"></textarea></div>
+    <div class="stylepick"><label for="pg-style">Handwriting style</label><select id="pg-style"></select></div>
+    <div class="stylepick"><label for="pg-where">Where</label><select id="pg-where">
+      <option value="replace">Replace every sheet</option>
+      <option value="continue">Carry on under the writing on this sheet</option>
+      <option value="append">Start on new sheets after the last one</option>
+    </select></div>
+    <div class="mt"></div>
+    <div class="place" id="pg-place"></div>
+    <p class="help mt">These come from <b>Write on lined paper</b> in the Paper card; change them there.</p>
+    <div class="row mt"><button class="primary" id="pg-go">Lay it out</button><span class="muted" id="pg-res"></span></div>
+  </div>
+</dialog>
+
+<dialog id="ask">
+  <div class="dh"><h2 id="ask-t"></h2></div>
+  <div class="db"><p id="ask-m"></p><div class="row end"><button id="ask-no">Cancel</button><button class="primary" id="ask-yes">OK</button></div></div>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+const S = { sheets: [{ items: [] }], sheet: 0, items: null, settings: {}, name: 'plot', selected: null,
+            show: { safe: true, travel: false, rules: false }, lined: { on: false, first: 30, bottom: 15, left: 30, right: 10, gap: 8 },
+            shift: { a: 0, b: 0 }, place: null, dest: 'plots', theme: null,
+            paper: { w: 210, h: 297 }, two_pass: true, kind: 'plot', done: {}, page: {} };
+S.items = S.sheets[0].items;
+let M = null;                 // machine info from the server
+let plan = null, check = null, planSeq = 0, planTimer, checkTimer, saveTimer;
+const sources = {}, srcErr = {}, pending = {};
+let history = [], future = [];
+let view = { x: -10, y: -10, w: 290 };
+let library = [];
+
+function api(path, body) {
+  return fetch(path, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(r => r.json().then(j => { if (!r.ok) throw new Error(j.error || r.statusText); return j; }));
+}
+function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+const r1 = v => Math.round(v * 10) / 10;
+function fmtTime(s) { s = Math.round(s); if (s < 60) return s + ' s'; const m = Math.floor(s / 60); if (m < 60) return m + ' min ' + String(s % 60).padStart(2, '0') + ' s'; return Math.floor(m / 60) + ' h ' + (m % 60) + ' min'; }
+function clock(s) { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60); return m + ':' + String(s % 60).padStart(2, '0'); }
+
+/* ---------- toast ---------- */
+let toastTimer;
+/* An in-page yes/no question (replaces the browser's confirm()). Resolves true for yes. */
+function ask(title, msg, yes) {
+  const d = $('ask');
+  $('ask-t').textContent = title; $('ask-m').textContent = msg || '';
+  $('ask-yes').textContent = yes || 'OK';
+  return new Promise(res => {
+    const done = v => { d.close(); res(v); };
+    $('ask-yes').onclick = () => done(true); $('ask-no').onclick = () => done(false);
+    d.oncancel = e => { e.preventDefault(); done(false); };
+    d.showModal(); $('ask-no').focus();
+  });
+}
+function toast(title, msg, kind, actions) {
+  const t = $('toast');
+  t.className = 'show ' + (kind || '');
+  t.innerHTML = `<h4>${esc(title)}</h4>${msg ? `<p>${esc(msg)}</p>` : ''}<div class="row"></div>`;
+  for (const [label, fn] of actions || []) { const b = document.createElement('button'); b.textContent = label; b.onclick = () => { fn(); t.className = ''; }; t.querySelector('.row').appendChild(b); }
+  const ok = document.createElement('button'); ok.textContent = 'OK'; ok.onclick = () => t.className = ''; t.querySelector('.row').appendChild(ok);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = '', kind === 'error' ? 14000 : 7000);
+}
+
+/* ---------- sources ---------- */
+const keyOf = src => JSON.stringify(src, Object.keys(src).sort());
+function srcOf(it) { return sources[keyOf(it.src)]; }
+async function loadSource(src) {
+  const k = keyOf(src);
+  if (sources[k]) return sources[k];
+  if (!pending[k]) pending[k] = api('/plot/source', { src }).then(d => {
+    d.d = d.paths.map(p => { let s = 'M' + p[0] + ' ' + p[1]; for (let i = 2; i < p.length; i += 2) s += 'L' + p[i] + ' ' + p[i + 1]; return s; }).join('');
+    delete d.paths; sources[k] = d; delete srcErr[k]; return d;
+  }).catch(e => { srcErr[k] = e.message; delete pending[k]; throw e; });
+  return pending[k];
+}
+
+/* ---------- item geometry ---------- */
+function dims(it) {
+  const s = srcOf(it);
+  if (!s) return { w: it.w || 50, h: it.h || 50 };
+  const w = it.w || s.w0 || 1;
+  const h = it.h || (s.h0 * (s.w0 > 1e-9 ? w / s.w0 : 1)) || 1;
+  return { w, h };
+}
+function scales(it) {
+  const s = srcOf(it), { w, h } = dims(it);
+  let sx = s && s.w0 > 1e-9 ? w / s.w0 : 1, sy = s && s.h0 > 1e-9 ? h / s.h0 : sx;
+  if (s && s.w0 <= 1e-9) sx = sy;
+  return { sx, sy };
+}
+function corners(it) {
+  const { w, h } = dims(it), t = (it.rot || 0) * Math.PI / 180, c = Math.cos(t), s = Math.sin(t);
+  return [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]].map(([u, v]) => [it.cx + u * c - v * s, it.cy + u * s + v * c]);
+}
+function bbox(it) {
+  const p = corners(it);
+  return [Math.min(...p.map(q => q[0])), Math.min(...p.map(q => q[1])), Math.max(...p.map(q => q[0])), Math.max(...p.map(q => q[1]))];
+}
+function rotatedSize(w, h, rot) { const t = rot * Math.PI / 180, c = Math.abs(Math.cos(t)), s = Math.abs(Math.sin(t)); return [w * c + h * s, w * s + h * c]; }
+
+function fitItem(it, frac) {
+  if (!M) return;
+  const { w, h } = dims(it);
+  let best = null;
+  for (const r of aRects()) {
+    const [bw, bh] = rotatedSize(w, h, it.rot || 0);
+    const k = Math.min((r[2] - r[0]) / bw, (r[3] - r[1]) / bh) * (frac || 0.98);
+    if (!best || k > best.k) best = { k, r };
+  }
+  if (!best) return;
+  it.w = w * best.k; it.h = h * best.k;
+  it.cx = (best.r[0] + best.r[2]) / 2; it.cy = (best.r[1] + best.r[3]) / 2;
+}
+function aRects() {
+  const a = (M.fit_rects || []).filter(r => r[1] >= M.reach[1] - 0.01 && r[3] <= M.reach[3] + 0.01);
+  return a.length ? a : [M.reach];
+}
+function bestRect() {
+  if (!M) return [20, 40, 200, 220];
+  let best = M.reach, a = 0;
+  for (const r of aRects()) { const ar = (r[2] - r[0]) * (r[3] - r[1]); if (ar > a) { a = ar; best = r; } }
+  return best;
+}
+/* Where new writing goes: on the next free ruled line under what's already on the sheet (lined paper), else a
+   line's gap under the lowest writing, lined up with its left edge. null = use the default spot. */
+function inkBottom(except) {
+  const ys = S.items.filter(o => o !== except && !o.hidden && srcOf(o)).map(o => bbox(o)[3]);
+  return ys.length ? Math.max(...ys) : null;
+}
+function nextLineSpot(it) {
+  const s = srcOf(it); if (!s || s.baseline == null) return null;
+  const k = scales(it).sy, top = s.baseline * k, bottom = inkBottom(it);
+  if (S.lined.on) {
+    const L = S.lined, gap = Math.max(3, L.gap), last = S.paper.h - L.bottom, minTop = M ? M.reach[1] : 0;
+    for (let y = L.first; y <= last + 0.01; y += gap) {
+      // under earlier writing: the next ruled line below its lowest ink (tall letters may reach up between the lines,
+      // as on real lined paper); on an empty sheet: the first line the pen can reach
+      if (bottom != null ? y < bottom + 1 : y - top < minTop) continue;
+      return { cx: L.left + 1.5 + it.w / 2, cy: y - top + it.h / 2 };
+    }
+    return null;
+  }
+  if (bottom == null) return null;
+  const prev = S.items.filter(o => o !== it && !o.hidden && srcOf(o) && srcOf(o).baseline != null)
+    .sort((a, b) => bbox(b)[3] - bbox(a)[3])[0];
+  const left = prev ? bbox(prev)[0] : bestRect()[0] + 3, lh = (it.src.style && it.src.style.line_height) || 8;
+  return { cx: left + it.w / 2, cy: bottom + lh * 0.5 + it.h / 2 };
+}
+function placeNew(it) {
+  const s = srcOf(it); if (!s) return;
+  const r = bestRect();
+  if (s.units === 'svg') { it.w = s.w0; it.h = s.h0; fitItem(it, 0.85); }
+  else {
+    it.w = s.w0; it.h = s.h0;
+    const [bw, bh] = [r[2] - r[0] - 4, r[3] - r[1] - 4];
+    if (it.w > bw || it.h > bh) { const k = Math.min(bw / it.w, bh / it.h); it.w *= k; it.h *= k; }
+    const spot = s.baseline != null && it.src.kind === 'writing' ? nextLineSpot(it) : null;
+    if (spot) { it.cx = spot.cx; it.cy = spot.cy; }
+    else if (s.baseline != null && it.src.kind === 'writing') { it.cx = r[0] + 3 + it.w / 2; it.cy = r[1] + 3 + it.h / 2; }
+    else { it.cx = (r[0] + r[2]) / 2; it.cy = (r[1] + r[3]) / 2; }
+  }
+  if (it.lock === undefined) it.lock = !['rect'].includes(it.src.kind);
+  delete it.new;
+}
+
+/* ---------- view ---------- */
+const cv = $('cv');
+function setView(v) {
+  const cw = cv.clientWidth || 800, ch = cv.clientHeight || 600;
+  view = { x: v.x, y: v.y, w: Math.max(8, Math.min(1200, v.w)) };
+  view.h = view.w * ch / cw;
+  cv.setAttribute('viewBox', `${view.x} ${view.y} ${view.w} ${view.h}`);
+  drawSel(); drawTicksLater();
+}
+function fitView() {
+  const cw = cv.clientWidth || 800, ch = cv.clientHeight || 600;
+  const W = 280, H = 316, k = Math.max(W / cw, H / ch);
+  setView({ x: 105 - cw * k / 2, y: 143 - ch * k / 2, w: cw * k });
+}
+function realView() {
+  const cw = cv.clientWidth, w = cw / (96 / 25.4);
+  const c = S.selected ? findItem(S.selected) : null;
+  const cx = c ? c.cx : view.x + view.w / 2, cy = c ? c.cy : view.y + view.h / 2;
+  setView({ x: cx - w / 2, y: cy - w * cv.clientHeight / cw / 2, w });
+}
+function zoomAt(f, px, py) {
+  const p = px === undefined ? { x: view.x + view.w / 2, y: view.y + view.h / 2 } : { x: px, y: py };
+  const w = view.w * f;
+  setView({ x: p.x - (p.x - view.x) * f, y: p.y - (p.y - view.y) * f, w });
+}
+function mmPerPx() { return view.w / (cv.clientWidth || 800); }
+function toMM(e) { const r = cv.getBoundingClientRect(); return { x: view.x + (e.clientX - r.left) * mmPerPx(), y: view.y + (e.clientY - r.top) * mmPerPx() }; }
+
+/* ---------- drawing the stage ---------- */
+function drawStage() {
+  const g = $('g-stage'); g.innerHTML = '';
+  const W = S.paper.w, H = S.paper.h, two = !!(M && M.two_pass && M.reach_b);
+  const d0 = S.shift.a || 0, front = 256 - d0;
+  const vb = two && S.viewPart === 'b', dv = vb ? (S.shift.b || 0) : d0;
+  // the bed, as it lies under the sheet for the part being shown (part 2: the sheet is turned round on it)
+  if (vb) el('rect', { x: W - 256 - 14, y: H + dv - 256 - 14, width: 284, height: 284, rx: 6, class: 'bed' }, g);
+  else el('rect', { x: -14, y: -14 - d0, width: 284, height: 284, rx: 6, class: 'bed' }, g);
+  el('rect', { x: 0, y: 0, width: W, height: H, class: 'paper' }, g);
+  if (!two) {
+    el('rect', { x: 0, y: front, width: W, height: H - front, class: 'offbed' }, g);
+    const t = el('text', { x: W / 2, y: (front + H) / 2 + 1.2, 'text-anchor': 'middle', class: 'lbl dim' }, g); t.textContent = 'hangs off the front of the bed';
+  }
+  if (M && S.show.safe) {
+    const A = M.reach, B = two ? M.reach_b : null, shadeH = two ? H : front;
+    const mk = el('mask', { id: 'm-reach', maskUnits: 'userSpaceOnUse', x: -5, y: -5, width: W + 10, height: H + 10 }, g);
+    el('rect', { x: -5, y: -5, width: W + 10, height: H + 10, fill: 'white' }, mk);
+    el('rect', { x: A[0], y: A[1], width: A[2] - A[0], height: A[3] - A[1], fill: 'black' }, mk);
+    if (B) el('rect', { x: B[0], y: B[1], width: B[2] - B[0], height: B[3] - B[1], fill: 'black' }, mk);
+    el('rect', { x: 0, y: 0, width: W, height: shadeH, class: 'noreach', mask: 'url(#m-reach)' }, g);
+    el('rect', { x: 0, y: 0, width: W, height: shadeH, fill: 'url(#hatch-no)', mask: 'url(#m-reach)' }, g);
+    const lbl = (x, y, text, cls, extra) => { const t = el('text', Object.assign({ x, y, 'text-anchor': 'middle', class: 'lbl ' + (cls || '') }, extra || {}), g); t.textContent = text; };
+    if (A[1] > 8) lbl(W / 2, Math.min(A[1] / 2 + 1.5, A[1] - 3), 'pen can\'t reach (it sits ' + Math.round(-M.offset_y) + ' mm in front of the nozzle)');
+    if (!two && front - A[3] > 6) lbl(W / 2, (A[3] + front) / 2 + 1.2, 'holder would hit the front');
+    if (B && H - B[3] > 6) lbl(W / 2, (B[3] + H) / 2 + 1.2, 'can\'t reach, even turned round');
+    if (A[0] > 6) lbl(A[0] / 2 + 1, 140, 'holder would hit the side', '', { transform: `rotate(-90 ${A[0] / 2 + 1} 140)` });
+    for (const b of M.banned.concat(M.banned_b || [])) el('polygon', { points: b.poly.map(p => p.join(',')).join(' '), class: b.head ? 'banned' : 'zone' }, g);
+    el('rect', { x: A[0], y: A[1], width: A[2] - A[0], height: A[3] - A[1], class: 'reach', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.2 }, g);
+    if (B) {
+      el('rect', { x: B[0], y: B[1], width: B[2] - B[0], height: B[3] - B[1], class: 'reachb', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.2 }, g);
+      lbl(A[0] + 2, A[1] + 4.2, 'part 1', 'a', { 'text-anchor': 'start' });
+      lbl(B[2] - 2, B[3] - 1.8, 'part 2: sheet turned round', 'b', { 'text-anchor': 'end' });
+    }
+    if (M.banned.some(b => b.head)) {
+      const b = M.banned.find(b => b.head && b.poly.some(p => p[0] > W / 2));
+      if (b) { const xs = b.poly.map(p => p[0]), ys = b.poly.map(p => p[1]); lbl(Math.min(W - 5, Math.max(...xs)) - 1, Math.max(...ys) + 4.5, 'nozzle would pass over the magnet', 'head', { 'text-anchor': 'end' }); }
+    }
+  }
+  if (M) drawPlacement(g, W, H, vb, dv);
+  drawTicks();
+  drawRules();
+}
+function drawPlacement(g, W, H, vb, d) {
+  // the magnets where they really go, and how far the sheet sits from the back of the bed
+  const D = M.magnet_diameter || 10, s = M.magnet_size || 20, k = mmPerPx();
+  const backY = d >= D / 2 ? 0 : d > 0 ? D / 2 - d : D / 2;      // centre of a back magnet, from the sheet's back edge
+  const frontY = 256 - d - D / 2 - 1;                             // centre of a front magnet, on the bed's front edge
+  const pts = [[s / 2, backY], [W - s / 2, backY], [s / 2, frontY], [W - s / 2, frontY]];
+  for (const [x, y] of pts) {
+    const [px, py] = vb ? [W - x, H - y] : [x, y];
+    el('circle', { cx: px, cy: py, r: D / 2, class: 'magnet-real', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.5 }, g);
+  }
+  const fs = Math.max(4, 13 * k);
+  const backEdge = vb ? H : 0, bedBack = vb ? H + d : -d, sideX = vb ? W : 0;
+  // back edge of the bed, and the gap to the sheet
+  el('line', { x1: vb ? W - 256 : 0, x2: vb ? W : 256, y1: bedBack, y2: bedBack, class: 'bedline', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.5 }, g);
+  const tx = W / 2;
+  if (d > 0) {
+    el('path', { d: `M${tx} ${bedBack}V${backEdge}M${tx - 3} ${bedBack}H${tx + 3}M${tx - 3} ${backEdge}H${tx + 3}`, class: 'dimline', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 2 }, g);
+  }
+  const t = el('text', { x: tx + 4, y: (bedBack + backEdge) / 2 + (vb ? fs + 2 : -2), class: 'dimlbl', 'font-size': fs }, g);
+  t.textContent = d > 0 ? `${d} mm from the back of the bed` : 'against the back of the bed';
+  const side = el('text', { x: sideX + (vb ? 3 : -3), y: H / 2, 'text-anchor': 'middle', class: 'dimlbl', 'font-size': fs * 0.85,
+    transform: `rotate(${vb ? 90 : -90} ${sideX + (vb ? 3 : -3)} ${H / 2})` }, g);
+  side.textContent = vb ? 'this edge against the left side of the bed' : 'against the left side of the bed';
+}
+function paintPlacebar() {
+  const two = !!(M && M.two_pass && M.reach_b && (S.place ? S.place.two_parts : true));
+  const on = S.lined.on || (S.shift.a || S.shift.b);
+  $('placebar').hidden = !on;
+  $('viewpart').hidden = !two;
+  if (!two) S.viewPart = 'a';
+  for (const b of $('viewpart').children) b.classList.toggle('on', b.dataset.v === (S.viewPart || 'a'));
+  const a = S.shift.a || 0, b = S.shift.b || 0;
+  $('placebar-text').innerHTML = S.viewPart === 'b'
+    ? `<b>Part 2:</b> sheet turned round, bottom edge ${b ? `<b>${b} mm</b> in front of` : 'against'} the back of the bed`
+    : `<b>Part 1:</b> top edge ${a ? `<b>${a} mm</b> in front of` : 'against'} the back of the bed, left edge against the left side`;
+}
+function drawTicks() {
+  let g = $('g-ticks'); if (!g) { g = el('g', { id: 'g-ticks' }); $('g-stage').appendChild(g); } g.innerHTML = '';
+  const k = mmPerPx(), big = k > 0.6 ? 50 : k > 0.3 ? 20 : 10;
+  let d = '';
+  for (let x = 0; x <= S.paper.w; x += 5) { const L = x % big === 0 ? 3 : x % 10 === 0 ? 1.8 : 1; d += `M${x} 0V${L}`; }
+  for (let y = 0; y <= S.paper.h; y += 5) { const L = y % big === 0 ? 3 : y % 10 === 0 ? 1.8 : 1; d += `M0 ${y}H${L}`; }
+  el('path', { d, class: 'tick', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1 }, g);
+  const fs = Math.max(2.4, Math.min(9, 10 * k));
+  for (let x = big; x < S.paper.w; x += big) { const t = el('text', { x, y: 3.2 + fs, 'text-anchor': 'middle', class: 'ticklbl', 'font-size': fs }, g); t.textContent = x; }
+  for (let y = big; y < S.paper.h; y += big) { const t = el('text', { x: 3.6, y: y + fs * 0.35, class: 'ticklbl', 'font-size': fs }, g); t.textContent = y; }
+}
+let tickTimer; function drawTicksLater() { clearTimeout(tickTimer); tickTimer = setTimeout(drawTicks, 60); }
+function drawRules() {
+  const g = $('g-rules'); g.innerHTML = '';
+  if (!S.show.rules) return;
+  let d = '';
+  const L = S.lined, last = S.paper.h - L.bottom, right = S.paper.w - L.right;
+  for (let y = L.first; y <= last + 0.01; y += Math.max(3, L.gap)) d += `M0 ${y}H${right}`;
+  el('path', { d, class: 'rule', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1 }, g);
+  el('path', { d: `M${L.left} 0V${S.paper.h}`, class: 'rule', stroke: '#e48b8b', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1 }, g);
+}
+
+/* ---------- items ---------- */
+function findItem(id) { return S.items.find(i => i.id === id); }
+function itemTransform(it) {
+  const s = srcOf(it), { sx, sy } = scales(it);
+  return `translate(${it.cx} ${it.cy}) rotate(${it.rot || 0}) scale(${sx * (it.flip ? -1 : 1)} ${sy}) translate(${-s.w0 / 2} ${-s.h0 / 2})`;
+}
+function drawItems() {
+  const g = $('g-items'); g.innerHTML = '';
+  for (const it of S.items) {
+    if (it.hidden) continue;
+    const s = srcOf(it), err = srcErr[keyOf(it.src)];
+    if (!s) {
+      const { w, h } = dims(it);
+      const gg = el('g', { class: 'item err', 'data-id': it.id, transform: `translate(${it.cx} ${it.cy}) rotate(${it.rot || 0})` }, g);
+      el('rect', { x: -w / 2, y: -h / 2, width: w, height: h, class: 'hit', 'vector-effect': 'non-scaling-stroke' }, gg);
+      if (err) { const t = el('text', { x: 0, y: 0, 'text-anchor': 'middle', class: 'lbl' }, gg); t.textContent = '!'; }
+      continue;
+    }
+    const gg = el('g', { class: 'item', 'data-id': it.id, transform: itemTransform(it) }, g);
+    const { sx, sy } = scales(it), px = 1.5 / Math.max(sx, 1e-9), py = 1.5 / Math.max(sy, 1e-9);
+    el('rect', { x: -px, y: -py, width: s.w0 + 2 * px, height: s.h0 + 2 * py, class: 'hit' }, gg);
+    el('path', { d: s.d, class: 'ink', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.15 }, gg);
+  }
+  $('hint').hidden = S.items.length > 0;
+  drawCuts();
+}
+function updateItemNode(it) {
+  const n = $('g-items').querySelector(`[data-id="${it.id}"]`);
+  if (n && srcOf(it)) n.setAttribute('transform', itemTransform(it)); else drawItems();
+}
+function drawCuts(skipId) {
+  const g = $('g-cut'); g.innerHTML = '';
+  $('g-passb').innerHTML = '';
+  if (!plan) return;
+  let d = '';
+  for (const it of S.items) {
+    if (it.id === skipId || it.hidden) continue;
+    const info = plan.items[it.id]; if (!info || !info.cut_paths) continue;
+    for (const p of info.cut_paths) d += strokeD(p);
+  }
+  if (d) el('path', { d, class: 'cut', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.6 }, g);
+  if (!skipId && plan.pass_b && plan.pass_b.length)
+    el('path', { d: plan.pass_b.map(p => strokeD(p)).join(''), class: 'passb', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.3 }, $('g-passb'));
+}
+function drawTravel() {
+  const g = $('g-travel'); g.innerHTML = '';
+  if (!S.show.travel || !plan || !plan.travel) return;
+  let d = '';
+  for (const [a, b, c, e] of plan.travel) d += `M${a} ${b}L${c} ${e}`;
+  el('path', { d, class: 'travel', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1 }, g);
+}
+
+/* ---------- selection ---------- */
+function select(id) {
+  S.selected = id; drawSel(); renderLayers(); renderProps();
+}
+function drawSel() {
+  const g = $('g-sel'); g.innerHTML = '';
+  const it = S.selected && findItem(S.selected);
+  if (!it || it.hidden || sim.on || !isFinite(it.cx) || !isFinite(it.cy)) return;
+  const p = corners(it), k = mmPerPx(), r = 5 * k;
+  el('polygon', { points: p.map(q => q.join(',')).join(' '), class: 'sel', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.2 }, g);
+  const t = (it.rot || 0) * Math.PI / 180, up = [Math.sin(t), -Math.cos(t)];
+  const tm = [(p[0][0] + p[1][0]) / 2, (p[0][1] + p[1][1]) / 2], rh = [tm[0] + up[0] * 22 * k, tm[1] + up[1] * 22 * k];
+  el('line', { x1: tm[0], y1: tm[1], x2: rh[0], y2: rh[1], class: 'sel', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1 }, g);
+  el('circle', { cx: rh[0], cy: rh[1], r: r, class: 'handle rot', 'data-h': 'rot', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.5 }, g);
+  p.forEach((q, i) => el('rect', { x: q[0] - r, y: q[1] - r, width: 2 * r, height: 2 * r, rx: r * .3, class: 'handle', 'data-h': 'corner', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.5 }, g));
+  if (!it.lock) {
+    const mids = [[(p[1][0] + p[2][0]) / 2, (p[1][1] + p[2][1]) / 2, 'ex'], [(p[3][0] + p[0][0]) / 2, (p[3][1] + p[0][1]) / 2, 'ex'],
+                  [(p[2][0] + p[3][0]) / 2, (p[2][1] + p[3][1]) / 2, 'ey'], [(p[0][0] + p[1][0]) / 2, (p[0][1] + p[1][1]) / 2, 'ey']];
+    for (const [x, y, h] of mids) el('circle', { cx: x, cy: y, r: r * .8, class: 'handle ' + h, 'data-h': h, 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.5 }, g);
+  }
+}
+
+/* ---------- interaction ---------- */
+let drag = null;
+cv.addEventListener('pointerdown', e => {
+  if (e.button === 1 || e.button === 2) return;
+  const pt = toMM(e);
+  const h = e.target.closest('[data-h]');
+  const ig = e.target.closest('.item');
+  if (sim.on) { drag = { kind: 'pan', start: { x: e.clientX, y: e.clientY }, v: { ...view } }; cv.classList.add('panning'); cv.setPointerCapture(e.pointerId); return; }
+  if (h && S.selected) {
+    const it = findItem(S.selected);
+    drag = { kind: h.dataset.h, it, start: pt, orig: { ...it, ...dims(it) } };
+  } else if (ig) {
+    const it = findItem(ig.dataset.id);
+    if (S.selected !== it.id) select(it.id);
+    drag = { kind: 'move', it, start: pt, orig: { ...it } };
+  } else {
+    if (S.selected) select(null);
+    drag = { kind: 'pan', start: { x: e.clientX, y: e.clientY }, v: { ...view } };
+    cv.classList.add('panning');
+  }
+  drag.moved = false;
+  cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove', e => {
+  const pt = toMM(e);
+  $('hud').textContent = `${r1(pt.x)} mm from left · ${r1(pt.y)} mm from top`;
+  if (!drag) return;
+  drag.moved = true;
+  const it = drag.it, o = drag.orig;
+  if (drag.kind === 'pan') {
+    const k = mmPerPx();
+    setView({ x: drag.v.x - (e.clientX - drag.start.x) * k, y: drag.v.y - (e.clientY - drag.start.y) * k, w: drag.v.w });
+    return;
+  }
+  if (drag.kind === 'move') {
+    let cx = o.cx + pt.x - drag.start.x, cy = o.cy + pt.y - drag.start.y;
+    const snap = 2 * 6 * mmPerPx();
+    let guide = null;
+    if (!e.altKey) {
+      if (Math.abs(cx - 105) < snap) { cx = 105; guide = 'v'; }
+      const s = srcOf(it);
+      if (S.show.rules && s && s.baseline != null && !(it.rot % 360)) {
+        const { sy } = scales(it), top = cy - s.h0 * sy / 2, base = top + s.baseline * sy;
+        const gap = Math.max(3, S.lined.gap), n = Math.round((base - S.lined.first) / gap), target = S.lined.first + n * gap;
+        if (Math.abs(target - base) < gap / 2) cy += target - base;
+      }
+    }
+    it.cx = cx; it.cy = cy;
+    updateItemNode(it); drawCuts(it.id); drawSel();
+    if (guide) el('line', { x1: 105, y1: -10, x2: 105, y2: 300, class: 'guide', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1 }, $('g-sel'));
+    renderPropsValues();
+    return;
+  }
+  if (drag.kind === 'corner') {
+    const d0 = Math.hypot(drag.start.x - o.cx, drag.start.y - o.cy), d1 = Math.hypot(pt.x - o.cx, pt.y - o.cy);
+    const k = Math.max(0.01, d1 / Math.max(d0, 1e-6));
+    it.w = Math.max(1, o.w * k); it.h = Math.max(0.2, o.h * k);
+  } else if (drag.kind === 'ex' || drag.kind === 'ey') {
+    const t = -(o.rot || 0) * Math.PI / 180, dx = pt.x - o.cx, dy = pt.y - o.cy;
+    const lx = dx * Math.cos(t) - dy * Math.sin(t), ly = dx * Math.sin(t) + dy * Math.cos(t);
+    if (drag.kind === 'ex') it.w = Math.max(1, 2 * Math.abs(lx)); else it.h = Math.max(1, 2 * Math.abs(ly));
+  } else if (drag.kind === 'rot') {
+    let a = Math.atan2(pt.y - o.cy, pt.x - o.cx) * 180 / Math.PI + 90;
+    a = ((a % 360) + 360) % 360;
+    const step = e.shiftKey ? 15 : 0;
+    if (step) a = Math.round(a / step) * step;
+    else for (const s of [0, 90, 180, 270, 360]) if (Math.abs(a - s) < 3) a = s % 360;
+    it.rot = Math.round(a * 10) / 10;
+  }
+  updateItemNode(it); drawCuts(it.id); drawSel(); renderPropsValues();
+});
+cv.addEventListener('pointerup', e => {
+  cv.classList.remove('panning');
+  if (!drag) return;
+  const was = drag; drag = null;
+  if (was.kind !== 'pan' && was.moved) { commit(); }
+  drawSel();
+});
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) { const p = toMM(e); zoomAt(Math.exp(e.deltaY * 0.01), p.x, p.y); }
+  else { const k = mmPerPx(); setView({ x: view.x + e.deltaX * k, y: view.y + e.deltaY * k, w: view.w }); }
+}, { passive: false });
+cv.addEventListener('pointerleave', () => $('hud').textContent = '—');
+new ResizeObserver(() => setView(view)).observe($('stage'));
+
+/* ---------- history ---------- */
+function snapshot() { return JSON.stringify(S.items); }
+let lastSnap = null;
+function commit(noHistory) {
+  const snap = snapshot();
+  if (!noHistory && lastSnap !== null && snap !== lastSnap) { history.push(lastSnap); if (history.length > 120) history.shift(); future = []; }
+  lastSnap = snap;
+  persist(); renderLayers(); renderProps(); schedulePlan();
+}
+function restore(snap) {
+  S.items = JSON.parse(snap); S.sheets[S.sheet].items = S.items; lastSnap = snap;
+  if (S.selected && !findItem(S.selected)) S.selected = null;
+  ensureSources().then(() => { drawItems(); drawSel(); renderLayers(); renderProps(); persist(); schedulePlan(); });
+}
+function undo() { if (!history.length) return; future.push(snapshot()); restore(history.pop()); }
+function redo() { if (!future.length) return; history.push(snapshot()); restore(future.pop()); }
+
+function persist() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => api('/plot/state', { sheets: S.sheets.map(sh => ({ items: cleanItems(sh.items, true) })), sheet: S.sheet,
+    settings: S.settings, name: S.name, selected: S.selected, show: S.show, lined: S.lined, shift: S.shift, dest: S.dest, theme: S.theme,
+    paper: S.paper, two_pass: S.two_pass, kind: S.kind, done: S.done, }).catch(() => {}), 400);
+}
+
+/* ---------- adding ---------- */
+let nextId = Date.now();
+async function addItem(src, name, extra) {
+  const it = Object.assign({ id: 'i' + (nextId++), src, name, rot: 0 }, extra || {});
+  try { await loadSource(src); }
+  catch (e) { toast('Couldn\'t add that', e.message, 'error'); return null; }
+  placeNew(it);
+  S.items.push(it);
+  drawItems(); select(it.id); commit();
+  return it;
+}
+async function addDrawing(name, title) { $('lib').close(); await addItem({ kind: 'svg', name }, title || name); }
+async function uploadFiles(files) {
+  for (const f of files) {
+    if (!/\.svg$/i.test(f.name)) { toast('Only SVG files', f.name + ' isn\'t an SVG.', 'error'); continue; }
+    try {
+      const text = await f.text();
+      const d = await api('/plot/upload', { name: f.name, svg: text });
+      library = d.library;
+      await addItem({ kind: 'svg', name: d.name }, f.name.replace(/\.svg$/i, ''));
+    } catch (e) { toast('Couldn\'t read ' + f.name, e.message, 'error'); }
+  }
+}
+/* ---------- fonts (built-in plus ones made from someone's handwriting, see /fonts) ---------- */
+let faceList = [{ id: '', name: 'Built-in font' }];
+async function loadFaces() {
+  try { const r = await api('/fonts/list'); faceList = [{ id: '', name: r.builtin + ' (built in)' }].concat(r.fonts.map(f => ({ id: f.id, name: f.name }))); } catch (e) {}
+}
+
+/* ---------- handwriting styles ---------- */
+let styles = [], writeNow = null;
+async function loadStyles() {
+  [styles, writeNow] = await Promise.all([api('/styles').catch(() => []), api('/plot/write').catch(() => null)]);
+}
+function sameStyle(a, b) {
+  if (!a || !b || a.engine !== b.engine) return false;
+  return JSON.stringify(a.engine === 'font' ? a.font : a.style) === JSON.stringify(b.engine === 'font' ? b.font : b.style);
+}
+function styleOf(src) { return { engine: src.engine || 'model', style: src.style, font: src.font }; }
+function styleLabel(src) {
+  const hit = styles.find(st => sameStyle(st, styleOf(src)));
+  return hit ? hit.name : writeNow && sameStyle(styleOf(writeNow), styleOf(src)) ? 'Write page style' : 'its own style';
+}
+function fillStyles(sel, current) {
+  const opts = [['write', 'As on the Write page now']].concat(styles.map(st => ['n:' + st.name, st.name + (st.engine === 'font' ? ' (font)' : ' (AI)')]));
+  let pick = 'write';
+  if (current) {
+    const hit = styles.find(st => sameStyle(st, current));
+    if (hit) pick = 'n:' + hit.name;
+    else if (!(writeNow && sameStyle(styleOf(writeNow), current))) { opts.unshift(['keep', 'Keep its own style']); pick = 'keep'; }
+  }
+  sel.innerHTML = opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('');
+  sel.value = pick;
+  if (!styles.length) sel.title = 'Save styles on the Write page (Handwriting tab) to choose between them here';
+}
+function chosenStyle(value, current) {
+  if (value === 'keep' && current) return Object.assign({ name: '' }, current);
+  const st = value && value.startsWith('n:') ? styles.find(x => x.name === value.slice(2)) : null;
+  if (st) return { name: st.name, engine: st.engine, style: st.style, font: st.font };
+  return { name: '', engine: writeNow.engine, style: writeNow.style, font: writeNow.font };
+}
+function writingName(styleName, text) {
+  const words = text.trim().split(/\s+/);
+  return (styleName || 'Writing') + ': ' + words.slice(0, 4).join(' ') + (words.length > 4 ? '…' : '');
+}
+async function addWriting() {
+  await loadStyles();
+  if (!writeNow) { toast('Couldn\'t read the Write page', 'Is the studio still running?', 'error'); return; }
+  $('hw-text').value = writeNow.text || '';
+  fillStyles($('hw-style'));
+  $('hw-where').textContent = S.lined.on ? 'It goes on the next free ruled line, under anything already on this sheet.'
+    : S.items.some(o => !o.hidden) ? 'It goes under the lowest thing already on this sheet; drag it anywhere.' : 'Drag it anywhere once it is on the sheet.';
+  $('hw-res').textContent = ''; $('hw-go').disabled = false;
+  $('hwdlg').showModal(); $('hw-text').focus();
+}
+$('hw-go').onclick = async () => {
+  const text = $('hw-text').value;
+  if (!text.trim()) { $('hw-res').textContent = 'Type something to write first.'; return; }
+  const st = chosenStyle($('hw-style').value);
+  $('hw-go').disabled = true;
+  $('hw-res').textContent = st.engine === 'model' ? 'Writing it with the AI model… new text can take a minute.' : 'Writing it…';
+  const it = await addItem({ kind: 'writing', text, style: st.style, engine: st.engine, font: st.font }, writingName(st.name, text));
+  $('hw-go').disabled = false;
+  if (!it) { $('hw-res').textContent = 'That didn\'t work; see the message.'; return; }
+  $('hwdlg').close();
+  shrunkWarning(it);
+};
+/* Writing too big for the reachable area is shrunk to fit: say so, because the letters then print smaller. */
+function letterSize(src) { return src.engine === 'font' ? (src.font && src.font.size) : (src.style && src.style.letter_size); }
+function shrunkWarning(it) {
+  const s = srcOf(it), k = scales(it).sx;
+  if (!s || k > 0.98) return;
+  const ls = letterSize(it.src);
+  toast('Writing made smaller to fit',
+    `It is ${r1(s.h0)} mm tall, more than the pen can reach on one sheet, so it was shrunk to ${Math.round(k * 100)}%` +
+    (ls ? `: letters ${r1(ls * k)} mm instead of ${r1(ls)} mm.` : '.') +
+    `\nTo keep it full size, use Page of writing: it spreads the text over as many sheets as it needs.`, 'error',
+    [['Page of writing instead', () => { select(it.id); removeSelected(); $('a-page').click(); }]]);
+}
+function realSize(it) {
+  const s = srcOf(it); if (!s) return;
+  const b = bbox(it); it.w = s.w0; it.h = s.h0;
+  const nb = bbox(it); it.cx += b[0] - nb[0]; it.cy += b[1] - nb[1];
+  updateItemNode(it); drawItems(); drawSel(); commit(); renderProps();
+}
+
+/* ---------- library ---------- */
+async function openLibrary() {
+  library = await api('/plot/library');
+  renderLibrary(); $('lib').showModal(); $('lib-q').focus();
+}
+function renderLibrary() {
+  const q = $('lib-q').value.trim().toLowerCase();
+  const grid = $('libgrid'); grid.innerHTML = '';
+  for (const d of library) {
+    if (q && !(d.title + ' ' + d.name).toLowerCase().includes(q)) continue;
+    const b = document.createElement('button');
+    b.innerHTML = `<div class="th">loading…</div><div class="t">${esc(d.title)}</div><div class="w">${d.where === 'uploaded' ? 'your upload' : 'blueprint'}</div>`;
+    b.onclick = () => addDrawing(d.name, d.title);
+    grid.appendChild(b);
+    thumbQueue.push([b.querySelector('.th'), d.name]);
+  }
+  pumpThumbs();
+}
+const thumbQueue = []; let thumbBusy = 0;
+function pumpThumbs() {
+  while (thumbBusy < 2 && thumbQueue.length) {
+    const [node, name] = thumbQueue.shift(); thumbBusy++;
+    const img = new Image();
+    img.onload = () => { node.style.backgroundImage = `url("${img.src}")`; node.textContent = ''; thumbBusy--; pumpThumbs(); };
+    img.onerror = () => { node.textContent = 'no preview'; thumbBusy--; pumpThumbs(); };
+    img.src = '/plot/thumb/' + encodeURIComponent(name);
+  }
+}
+
+/* ---------- layers & props ---------- */
+function renderLayers() {
+  const ul = $('layers'); ul.innerHTML = '';
+  $('count').textContent = S.items.length ? S.items.length + (S.items.length === 1 ? ' item' : ' items') : '';
+  if (!S.items.length) { ul.innerHTML = '<li class="empty-list">Nothing yet.</li>'; return; }
+  for (const it of S.items) {
+    const li = document.createElement('li');
+    li.className = (it.id === S.selected ? 'on ' : '') + (it.hidden ? 'off' : '');
+    const info = plan && plan.items[it.id];
+    const err = srcErr[keyOf(it.src)] || (info && info.error);
+    const badge = err ? '<span class="badge err">problem</span>' : info && info.cut_pct >= 0.5 ? `<span class="badge">${Math.round(info.cut_pct)}% trimmed</span>` : '';
+    li.innerHTML = `<span class="nm" title="${esc(it.name || '')}">${esc(it.name || 'Item')}</span>${badge}
+      <button title="${it.hidden ? 'Show' : 'Hide (won\'t be plotted)'}" data-a="eye">${it.hidden
+        ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l18 18M10.6 6.1A10 10 0 0 1 22 12a17 17 0 0 1-3 3.6M6.6 6.6A17 17 0 0 0 2 12s4 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/></svg>'
+        : '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'}</button>`;
+    li.onclick = e => {
+      if (e.target.closest('[data-a="eye"]')) { it.hidden = !it.hidden; drawItems(); drawSel(); commit(); return; }
+      select(it.id);
+    };
+    ul.appendChild(li);
+  }
+}
+function renderProps() {
+  const it = S.selected && findItem(S.selected);
+  $('props').hidden = !it;
+  if (!it) return;
+  $('p-title').textContent = it.name || 'Selected';
+  $('p-lock').classList.toggle('on', !!it.lock); $('p-lock').setAttribute('aria-pressed', !!it.lock);
+  $('p-flip').classList.toggle('on', !!it.flip); $('p-flip').setAttribute('aria-pressed', !!it.flip);
+  const x = $('p-extra'); x.innerHTML = '';
+  const k = it.src.kind;
+  if (k === 'label') {
+    x.innerHTML = `<div class="f mt"><label>Text</label><textarea id="x-text" rows="2"></textarea></div>
+      <div class="grid2 mt"><div class="f"><label>Letter size</label><div class="unit"><input type="number" id="x-size" step="0.5" min="1"><em>mm</em></div></div>
+      <div class="f"><label>Tidiness</label><input type="range" id="x-tidy" min="0" max="1" step="0.05"></div></div>
+      <div class="stylepick"><label for="x-face">Font</label><select id="x-face"></select></div>`;
+    $('x-text').value = it.src.text; $('x-size').value = it.src.size; $('x-tidy').value = it.src.tidiness ?? 0.9;
+    const fillFaces = () => { $('x-face').innerHTML = faceList.map(f => `<option value="${esc(f.id)}">${esc(f.name)}</option>`).join(''); $('x-face').value = it.src.face || ''; };
+    fillFaces();
+    if (faceList.length < 2) loadFaces().then(() => { if (S.selected === it.id && $('x-face')) fillFaces(); });
+    let tm;
+    const upd = () => { clearTimeout(tm); tm = setTimeout(() => changeSrc(it, { ...it.src, text: $('x-text').value, size: Math.max(1, +$('x-size').value || 4), tidiness: +$('x-tidy').value, face: $('x-face').value || undefined }, true), 350); };
+    $('x-text').oninput = upd; $('x-size').oninput = upd; $('x-tidy').oninput = upd; $('x-face').onchange = upd;
+  } else if (k === 'writing') {
+    if (it.src.pick) {
+      x.innerHTML = `<p class="help mt">Part of a page of writing, in ${esc(styleLabel(it.src))}. To change its text or style, use <b>Page of writing</b> again; to add a second style under it, choose <b>Carry on under the writing on this sheet</b> there.</p>`;
+    } else {
+      const s0 = srcOf(it), k0 = s0 ? scales(it).sx : 1, ls = letterSize(it.src);
+      const sizeNote = k0 < 0.98
+        ? `<p class="help mt warnnote"><b>Printed at ${Math.round(k0 * 100)}% of its real size</b>${ls ? `: letters ${r1(ls * k0)} mm instead of ${r1(ls)} mm` : ''}. At full size it is ${r1(s0.h0)} mm tall${s0.h0 > 180 ? ', more than one sheet holds: use <b>Page of writing</b> to spread it over sheets' : ''}.</p><button class="wide mt" id="x-real">Back to real size</button>`
+        : `<p class="help mt">Writing is placed at its real size (${r1(s0 ? s0.h0 : 0)} mm tall). Turn on Ruled lines to snap it to your paper's lines.</p>`;
+      x.innerHTML = `<div class="f mt"><label for="x-wtext">Text</label><textarea id="x-wtext" rows="3"></textarea></div>
+        <div class="stylepick"><label for="x-wstyle">Handwriting style</label><select id="x-wstyle"></select></div>
+        <button class="wide mt" id="x-wapply" disabled>Rewrite it</button><span class="busy-note" id="x-wres" role="status"></span>${sizeNote}`;
+      if ($('x-real')) $('x-real').onclick = () => realSize(it);
+      $('x-wtext').value = it.src.text || '';
+      const cur = styleOf(it.src);
+      fillStyles($('x-wstyle'), cur);
+      const dirty = () => { $('x-wapply').disabled = $('x-wtext').value === it.src.text && $('x-wstyle').value === 'keep'; };
+      $('x-wtext').oninput = dirty;
+      $('x-wstyle').onchange = () => { $('x-wapply').disabled = false; };
+      if (!$('x-wstyle').querySelector('option[value="keep"]')) $('x-wapply').disabled = true;
+      $('x-wapply').onclick = async () => {
+        const st = chosenStyle($('x-wstyle').value, cur), text = $('x-wtext').value;
+        if (!text.trim()) return;
+        $('x-wapply').disabled = true;
+        $('x-wres').textContent = st.engine === 'model' ? ' Writing it with the AI model…' : '';
+        it.name = writingName(st.name || (it.name || '').split(':')[0], text);
+        await changeSrc(it, { kind: 'writing', text, style: st.style, engine: st.engine, font: st.font }, true);
+        renderLayers();
+      };
+      if (!styles.length && !writeNow) loadStyles().then(() => { if (S.selected === it.id) fillStyles($('x-wstyle'), cur); });
+    }
+  } else if (k === 'lines') {
+    x.innerHTML = `<div class="grid2 mt"><div class="f"><label>Lines</label><input type="number" id="x-count" min="1" max="200" step="1"></div>
+      <div class="f"><label>Spacing</label><div class="unit"><input type="number" id="x-gap" min="1" step="0.5"><em>mm</em></div></div></div>`;
+    $('x-count').value = it.src.count; $('x-gap').value = it.src.gap;
+    let tm;
+    const upd = () => { clearTimeout(tm); tm = setTimeout(() => changeSrc(it, { ...it.src, count: Math.max(1, Math.round(+$('x-count').value || 1)), gap: Math.max(1, +$('x-gap').value || 8), w: dims(it).w }, true), 350); };
+    $('x-count').oninput = upd; $('x-gap').oninput = upd;
+  }
+  renderPropsValues();
+  const info = plan && plan.items[it.id];
+  const err = srcErr[keyOf(it.src)] || (info && info.error);
+  const n = $('p-cut');
+  if (err) { n.hidden = false; n.textContent = err; }
+  else if (info && info.cut > 0.05) { n.hidden = false; n.textContent = `${Math.round(info.cut)} mm of line (${Math.max(1, Math.round(info.cut_pct))}%) is outside the drawable area and will be skipped. It's shown in red. Use Fit to area to make it fit.`; }
+  else n.hidden = true;
+}
+function renderPropsValues() {
+  const it = S.selected && findItem(S.selected); if (!it) return;
+  const b = bbox(it), { w, h } = dims(it), a = document.activeElement;
+  const set = (id, v) => { if (a !== $(id)) $(id).value = r1(v); };
+  set('p-left', b[0]); set('p-top', b[1]); set('p-w', w); set('p-h', h); set('p-rot', it.rot || 0);
+}
+async function changeSrc(it, src, keepSize) {
+  const b = bbox(it), oldS = srcOf(it), k = oldS ? scales(it) : { sx: 1, sy: 1 };
+  it.src = src;
+  try { await loadSource(src); } catch (e) { drawItems(); renderProps(); return; }
+  const s = srcOf(it);
+  // writing keeps its first line on the same ruled line (its baseline), not its top edge
+  const base = oldS && oldS.baseline != null && s.baseline != null && !(it.rot % 360) ? b[1] + oldS.baseline * k.sy : null;
+  if (src.kind === 'label' || src.kind === 'writing') { it.w = s.w0; it.h = s.h0; }
+  else if (keepSize) { it.w = s.w0 * k.sx; it.h = (s.h0 || 0) * k.sy || it.h; }
+  const nb = bbox(it); it.cx += b[0] - nb[0]; it.cy += b[1] - nb[1];
+  if (base != null) it.cy += base - (bbox(it)[1] + s.baseline * scales(it).sy);
+  drawItems(); drawSel(); commit();
+}
+function propInput(id, fn) {
+  $(id).addEventListener('change', () => { const it = findItem(S.selected); if (!it) return; const v = parseFloat($(id).value); if (isNaN(v)) return; fn(it, v); updateItemNode(it); drawSel(); commit(); });
+}
+propInput('p-left', (it, v) => { it.cx += v - bbox(it)[0]; });
+propInput('p-top', (it, v) => { it.cy += v - bbox(it)[1]; });
+propInput('p-w', (it, v) => { const { w, h } = dims(it); v = Math.max(1, v); if (it.lock) it.h = h * v / w; it.w = v; });
+propInput('p-h', (it, v) => { const { w, h } = dims(it); v = Math.max(0.5, v); if (it.lock) it.w = w * v / h; it.h = v; });
+propInput('p-rot', (it, v) => { it.rot = ((v % 360) + 360) % 360; });
+$('p-r90').onclick = () => { const it = findItem(S.selected); if (!it) return; it.rot = ((it.rot || 0) + 90) % 360; updateItemNode(it); drawSel(); commit(); };
+$('p-flip').onclick = () => { const it = findItem(S.selected); if (!it) return; it.flip = !it.flip; updateItemNode(it); commit(); };
+$('p-lock').onclick = () => { const it = findItem(S.selected); if (!it) return; it.lock = !it.lock; drawSel(); commit(); };
+$('p-fit').onclick = () => { const it = findItem(S.selected); if (!it) return; fitItem(it); updateItemNode(it); drawSel(); commit(); };
+$('p-center').onclick = () => { const it = findItem(S.selected); if (!it) return; const r = bestRect(); it.cx = (r[0] + r[2]) / 2; it.cy = (r[1] + r[3]) / 2; updateItemNode(it); drawSel(); commit(); };
+$('p-dup').onclick = duplicate;
+$('p-del').onclick = removeSelected;
+function duplicate() {
+  const it = findItem(S.selected); if (!it) return;
+  const c = JSON.parse(JSON.stringify(it)); c.id = 'i' + (nextId++); c.cx += 8; c.cy += 8; c.name = (it.name || 'Item') + ' copy';
+  S.items.push(c); drawItems(); select(c.id); commit();
+}
+function removeSelected() {
+  const i = S.items.findIndex(x => x.id === S.selected); if (i < 0) return;
+  S.items.splice(i, 1); S.selected = null; drawItems(); drawSel(); commit();
+}
+
+/* ---------- settings panel ---------- */
+const FMT = { mm: v => (+v).toFixed(1) + ' mm', mms: v => Math.round(v / 60) + ' mm/s', ms: v => Math.round(v) + ' ms' };
+function buildRanges() {
+  for (const box of document.querySelectorAll('.range[data-k]')) {
+    const k = box.dataset.k;
+    box.innerHTML = `<div class="top"><span>${box.dataset.label}</span><span class="pill" id="v-${k}"></span></div><input type="range" id="r-${k}" min="${box.dataset.min}" max="${box.dataset.max}" step="${box.dataset.step}">`;
+    $('r-' + k).addEventListener('input', e => { S.settings[k] = +e.target.value; paintRange(k); persist(); schedulePlan(); });
+  }
+}
+function paintRange(k) {
+  const box = document.querySelector(`.range[data-k="${k}"]`), r = $('r-' + k), v = S.settings[k];
+  r.value = v; r.style.setProperty('--p', ((v - r.min) / (r.max - r.min) * 100) + '%');
+  $('v-' + k).textContent = FMT[box.dataset.fmt](v);
+}
+function paintSettings() {
+  document.querySelectorAll('.range[data-k]').forEach(b => paintRange(b.dataset.k));
+  $('join').checked = S.settings.join >= 0.5;
+}
+function paintMachine() {
+  if (!M) return;
+  const a = document.activeElement;
+  const set = (id, v) => { if (a !== $(id)) $(id).value = v ?? ''; };
+  set('m-pen', M.pen); set('m-surface', M.surface); set('m-msize', M.magnet_size); set('m-mh', M.magnet_height);
+  set('c-pen', M.pen); set('c-surface', M.surface); set('c-ox', M.has_offset ? M.offset_x : ''); set('c-oy', M.has_offset ? M.offset_y : '');
+  $('zread').innerHTML = M.z_draw != null ? `Pen down at <b>Z ${M.z_draw.toFixed(1)}</b>, up at <b>Z ${M.z_lift.toFixed(1)}</b>` : 'Enter how far the pen sticks out.';
+  const hn = $('headnote');
+  if (M.head_low) { hn.hidden = false; hn.textContent = `While drawing, the nozzle is only ${(M.z_draw - M.surface).toFixed(1)} mm above the paper, lower than the ${M.magnet_height} mm magnets plus clearance, so the grey dashed areas near the magnets are off limits. Push the pen out to at least ${M.pen_for_free_corners} mm to free them.`; }
+  else hn.hidden = true;
+  $('calstate').innerHTML = M.has_offset
+    ? `<span class="c-ok">●</span> Offset <b>X ${M.offset_x.toFixed(1)}</b>, <b>Y ${M.offset_y.toFixed(1)}</b> mm<br><small>The pen sits ${Math.abs(M.offset_x).toFixed(1)} mm ${M.offset_x < 0 ? 'left of' : 'right of'} and ${Math.abs(M.offset_y).toFixed(1)} mm ${M.offset_y < 0 ? 'in front of' : 'behind'} the nozzle.</small>`
+    : '<span class="c-warn">●</span> Not calibrated yet. Press Calibrate.';
+}
+async function setMachine(set) {
+  try { M = await api('/plot/machine', { set, settings: S.settings }); paintMachine(); drawStage(); schedulePlan(); refreshPlacement(); }
+  catch (e) { toast('Not saved', e.message, 'error'); paintMachine(); }
+}
+for (const [id, k] of [['m-pen', 'pen'], ['m-surface', 'surface'], ['m-msize', 'magnet_size'], ['m-mh', 'magnet_height'], ['c-pen', 'pen'], ['c-surface', 'surface']])
+  $(id).addEventListener('change', e => { if (e.target.value !== '') setMachine({ [k]: +e.target.value }); });
+$('join').onchange = e => { S.settings.join = e.target.checked ? 1 : 0; persist(); schedulePlan(); };
+
+/* ---------- planning & checking ---------- */
+function cleanItems(items, keepUi) { return items.map(({ id, src, cx, cy, w, h, rot, flip, hidden, name, lock }) => keepUi ? { id, src, cx, cy, w, h, rot, flip, hidden, name, lock } : { id, src, cx, cy, w, h, rot, flip, hidden, name }); }
+function sheetState(k) { return { items: cleanItems(S.sheets[k].items), settings: S.settings, name: S.name, paper: S.paper, two_pass: S.two_pass, shift: S.shift }; }
+function planState() { return sheetState(S.sheet); }
+function setStatus(kind, title, list, warns) {
+  const s = $('status');
+  s.className = 'status ' + kind;
+  s.innerHTML = `<b><i></i>${esc(title)}</b>` + (list && list.length ? '<ul>' + list.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>' : '') +
+    (warns && warns.length ? '<ul class="warn">' + warns.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>' : '');
+}
+function schedulePlan() {
+  clearTimeout(planTimer); clearTimeout(checkTimer);
+  check = null; setButtons();
+  setStatus('busy', 'Updating…');
+  planTimer = setTimeout(runPlan, 220);
+}
+// one plan request at a time: edits made while one is running are planned once it returns (never a queue)
+let planning = false, planAgain = false;
+async function runPlan() {
+  if (planning) { planAgain = true; return; }
+  planning = true; planAgain = false;
+  try { await runPlanOnce(); } finally {
+    planning = false;
+    if (planAgain) runPlan();
+  }
+}
+async function runPlanOnce() {
+  const id = ++planSeq;
+  try {
+    const r = await api('/plot/plan', { state: planState(), travel: S.show.travel });
+    if (id !== planSeq || planAgain) return;
+    const machineChanged = JSON.stringify(r.machine) !== JSON.stringify(M);
+    plan = r; M = r.machine;
+    if (machineChanged) { drawStage(); paintMachine(); }
+    drawCuts(); drawTravel(); renderLayers(); renderProps();
+    $('st-strokes').textContent = r.stats.strokes.toLocaleString();
+    $('st-ink').textContent = r.stats.draw_mm >= 1000 ? (r.stats.draw_mm / 1000).toFixed(1) + ' m' : r.stats.draw_mm + ' mm';
+    $('st-time').textContent = r.stats.strokes ? '≈ ' + fmtTime(r.stats.seconds) : '—';
+    if (r.problems.length) { setStatus('bad', 'Can\'t plot this sheet yet', r.problems, r.warnings); $('st-hops').textContent = '—'; refreshJobs(); return; }
+    setStatus('busy', 'Running the safety checks…', [], r.warnings);
+    checkTimer = setTimeout(() => runCheck(id), 150);
+  } catch (e) { if (id === planSeq) setStatus('bad', 'Something went wrong', [e.message]); }
+}
+async function runCheck(id) {
+  try {
+    const r = await api('/plot/check', { state: planState() });
+    if (id !== planSeq) return;
+    check = r;
+    $('st-hops').textContent = r.hops;
+    $('st-time').textContent = '≈ ' + fmtTime(r.seconds);
+    const two = r.parts.length > 1;
+    if (r.ok) setStatus('ok', two ? 'Safe to plot, in two parts' : 'Safe to plot', two ? ['The lines in green-blue are written in part 2, after you turn the sheet round.'] : [], [...plan.warnings, ...r.warnings]);
+    else setStatus('bad', 'Not safe yet', r.errors, plan.warnings);
+    setButtons(); refreshJobs();
+  } catch (e) { if (id === planSeq) setStatus('bad', 'The check failed to run', [e.message]); }
+}
+function setButtons() { $('save').disabled = !jobsReady(); }
+
+/* ---------- saving ---------- */
+async function refreshVolumes() {
+  try {
+    const vols = await api('/plot/volumes');
+    const sel = $('dest'), cur = S.dest;
+    const opts = [['plots', 'Plotter folder (out/plots)'], ['downloads', 'Downloads'], ...vols.map(v => [v.name, `${v.printer ? 'Printer card' : v.card ? 'SD card' : 'Disk'}: ${v.name} (${v.gb} GB)`])];
+    const sig = JSON.stringify(opts);
+    if (sel.dataset.sig === sig) return;
+    const had = new Set([...sel.options].map(o => o.value));
+    sel.dataset.sig = sig; sel.innerHTML = '';
+    for (const [v, l] of opts) sel.add(new Option(l, v));
+    const fresh = vols.find(v => v.printer && !had.has(v.name) && had.size);
+    if (fresh) { S.dest = fresh.name; toast('Printer SD card found', `“${fresh.name}” is connected, so plots will be saved straight to it.`, 'good'); persist(); }
+    sel.value = opts.some(o => o[0] === S.dest) ? S.dest : 'plots';
+    paintClean();
+  } catch (e) {}
+}
+function paintClean() { $('clean').hidden = $('eject').hidden = ['plots', 'downloads'].includes($('dest').value); }
+$('eject').onclick = async () => {
+  const dest = $('dest').value;
+  try {
+    await api('/plot/eject', { dest });
+    toast('Card ejected', `You can take “${dest}” out now and put it in the printer.`, 'good');
+    refreshVolumes();
+  } catch (e) { toast('Couldn\'t eject the card', e.message, 'error'); }
+};
+$('dest').onchange = e => { S.dest = e.target.value; persist(); paintClean(); };
+$('clean').onclick = async () => {
+  const dest = $('dest').value;
+  try {
+    const r = await api('/plot/clean', { dest });
+    if (!r.count) { toast('The card is clean', 'No hidden macOS files on “' + dest + '”.', 'good'); return; }
+    const msg = `${r.count} hidden macOS item${r.count > 1 ? 's' : ''} (${r.kb} KB) on “${dest}”:\n\n` +
+      r.names.slice(0, 12).join('\n') + (r.names.length > 12 ? '\n…' : '') +
+      (r.trashed.length ? `\n\nThis empties the card's Trash for good, including: ${r.trashed.slice(0, 6).join(', ')}${r.trashed.length > 6 ? '…' : ''}` : '') +
+      '\n\nYour own files are not touched. This can\'t be undone.';
+    if (!await ask('Delete the hidden macOS files?', msg, 'Delete them')) return;
+    const done = await api('/plot/clean', { dest, really: true });
+    toast('Card cleaned', `Removed ${done.removed} hidden item${done.removed === 1 ? '' : 's'}.` +
+      (done.left && done.left.length ? `\nmacOS protects ${done.left.join(' and ')}, so they stay; they are folders, not print files.` : '') +
+      '\nEject the card in Finder before taking it out.', 'good');
+  } catch (e) { toast('Couldn\'t clean the card', e.message, 'error'); }
+};
+const KIND_NAME = { plot: 'Plot file', rehearsal: 'Pen-up rehearsal', outline: 'Outline trace' };
+const KIND_EXT = { plot: '.gcode', rehearsal: '_rehearsal.gcode', outline: '_outline.gcode' };
+function safeName(n) { return (n || '').replace(/[^\w\- ]+/g, '').trim().replace(/ /g, '_') || 'plot'; }
+function suffixFor(n, k, part) { return n === 1 ? '' : `_${k + 1}${part}`; }
+let jobsList = [], jobsSeq = 0;
+function jobRows() {
+  const rows = [];
+  for (const { k, r } of jobsList) {
+    if (!r.ok) rows.push({ bad: true, k, r });
+    else for (const p of r.parts) rows.push({ k, part: p.part, p });
+  }
+  return rows;
+}
+function jobsReady() { const rows = jobRows(); return rows.length > 0 && !rows.some(x => x.bad); }
+async function refreshJobs() {
+  const id = ++jobsSeq, out = [];
+  for (let k = 0; k < S.sheets.length; k++) {
+    if (!S.sheets[k].items.some(i => !i.hidden)) continue;
+    let r;
+    if (k === S.sheet) {
+      if (check) r = check;
+      else if (plan && plan.problems.length) r = { ok: false, errors: plan.problems, parts: [] };
+      else r = { ok: false, pending: true, errors: [], parts: [] };
+    } else {
+      try { r = await api('/plot/check', { state: sheetState(k) }); } catch (e) { r = { ok: false, errors: [e.message], parts: [] }; }
+      if (id !== jobsSeq) return;
+    }
+    out.push({ k, r });
+  }
+  if (id !== jobsSeq) return;
+  jobsList = out; renderJobs();
+}
+const DL = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg>';
+function renderJobs() {
+  const ul = $('jobs'); ul.innerHTML = '';
+  const rows = jobRows(), good = rows.filter(x => !x.bad), n = good.length;
+  let next = false, first = true;
+  $('legend').hidden = !good.some(x => x.part === 'b');
+  for (const x of rows) {
+    const li = document.createElement('li');
+    if (x.bad) {
+      li.className = x.r.pending ? '' : 'bad';
+      li.innerHTML = `<span>${x.r.pending ? '…' : '!'}</span><span class="t"><b>Sheet ${x.k + 1}</b>: ${x.r.pending ? 'checking…' : 'not safe yet'}</span><span></span>` +
+        (x.r.pending ? '' : `<span class="how c-warn">${esc(x.r.errors[0] || '')}</span>`);
+      ul.appendChild(li); continue;
+    }
+    const key = x.k + x.part, done = !!S.done[key], isNext = !done && !next;
+    if (isNext) next = true;
+    li.className = (done ? 'done ' : '') + (isNext ? 'next' : '');
+    const file = safeName(S.name) + suffixFor(n, x.k, x.part) + KIND_EXT[S.kind];
+    const sa = S.shift.a || 0, sb = S.shift.b || 0;
+    const how = x.part === 'b'
+      ? 'Leave the pen alone. Take the sheet out and turn it round so its top edge is at the front. ' + (sb > 0
+        ? `Put its left edge against the left side of the bed with the bottom edge ${sb} mm in front of the back edge of the bed (measure at both ends). Magnets back on.`
+        : 'Push it back into the back-left corner and put the magnets back on.')
+      : (first ? 'Home with the holder off, then clip it on. ' : '') + (sa > 0
+        ? `Put ${first ? 'a' : 'a new'} sheet with its left edge against the left side of the bed and its top edge ${sa} mm in front of the back edge of the bed (measure at both ends). Magnets on the corners.`
+        : `Put ${first ? 'a' : 'a new'} sheet in the back-left corner, top edge at the back, magnets on the corners.`);
+    li.innerHTML = `<input type="checkbox" ${done ? 'checked' : ''} title="Tick it when it's printed"><span class="t"><b>Sheet ${x.k + 1}, ${x.part === 'a' ? 'part 1' : 'part 2 (turned round)'}</b><br><small class="muted">${esc(file)} · ≈ ${fmtTime(x.p.seconds)}</small></span><button title="Save just this file">${DL}</button>` +
+      (isNext ? `<span class="how">${esc(how)}</span>` : '');
+    li.querySelector('input').onchange = e => { S.done[key] = e.target.checked; persist(); renderJobs(); };
+    li.querySelector('button').onclick = () => saveJob(x.k, x.part, n);
+    ul.appendChild(li);
+    first = false;
+  }
+  if (n && !next) ul.insertAdjacentHTML('beforeend', '<li class="next"><span>✓</span><span class="t"><b>All printed.</b> Take the holder off before homing the printer.</span><span></span></li>');
+  if (!rows.length) ul.innerHTML = '<li><span></span><span class="t muted">Nothing to plot yet.</span><span></span></li>';
+  $('save-label').textContent = n > 1 ? `Save all ${n} files` : S.kind === 'plot' ? 'Save plot file' : 'Save ' + KIND_NAME[S.kind].toLowerCase();
+  setButtons();
+}
+function savedToast(title, files) {
+  const onCard = !['plots', 'downloads'].includes($('dest').value);
+  const folder = files[0].path.replace(/\/[^/]+$/, '');
+  toast(title, files.map(f => f.file).join('\n') + '\n' + folder + (onCard ? '\nEject the card before taking it out.' : ''), 'good',
+    onCard ? [['Eject card', () => $('eject').click()]] : [['Show in Finder', () => api('/plot/reveal', { path: files[0].path })]]);
+}
+async function saveJob(k, part, n) {
+  try {
+    const r = await api('/plot/export', { state: sheetState(k), kind: S.kind, dest: $('dest').value, part, suffix: suffixFor(n, k, part),
+      title: `${safeName(S.name)} - sheet ${k + 1}, ${part === 'a' ? 'part 1' : 'part 2 (sheet turned round)'}` });
+    savedToast(KIND_NAME[S.kind] + ' saved', [r]);
+  } catch (e) { toast('Not saved', e.message, 'error'); }
+}
+async function saveAll() {
+  if (!jobsReady()) return;
+  $('save').disabled = true;
+  try {
+    const r = await api('/plot/export_all', { all: { sheets: S.sheets.map(sh => ({ items: cleanItems(sh.items) })), settings: S.settings, name: S.name, paper: S.paper, two_pass: S.two_pass, shift: S.shift }, kind: S.kind, dest: $('dest').value });
+    if (S.kind === 'plot') { S.done = {}; persist(); renderJobs(); }
+    savedToast(r.files.length > 1 ? `${r.files.length} files saved` : KIND_NAME[S.kind] + ' saved', r.files);
+  } catch (e) { toast('Not saved', e.message, 'error'); }
+  setButtons();
+}
+$('save').onclick = saveAll;
+$('kind').onclick = e => { const v = e.target.dataset.v; if (!v) return; S.kind = v; for (const b of $('kind').children) b.classList.toggle('on', b.dataset.v === v); persist(); renderJobs(); };
+$('name').oninput = e => { S.name = e.target.value; persist(); renderJobs(); };
+
+/* ---------- sheets ---------- */
+function renderSheets() {
+  const box = $('sheets'); box.innerHTML = '';
+  S.sheets.forEach((sh, k) => {
+    const b = document.createElement('button');
+    b.className = k === S.sheet ? 'on' : '';
+    b.innerHTML = `Sheet ${k + 1}` + (S.sheets.length > 1 ? ' <span class="x" title="Remove this sheet">×</span>' : '');
+    b.onclick = e => { if (e.target.classList.contains('x')) removeSheet(k); else if (k !== S.sheet) switchSheet(k); };
+    box.appendChild(b);
+  });
+  const add = document.createElement('button'); add.textContent = '+ Sheet'; add.title = 'Add another sheet'; add.onclick = addSheet; box.appendChild(add);
+}
+function normalizeItems() {
+  let fresh = false;
+  for (const it of S.items) { if (it.new || it.w == null) { placeNew(it); fresh = true; } if (it.lock === undefined) it.lock = it.src.kind !== 'rect'; }
+  return fresh;
+}
+function switchSheet(k) {
+  if (sim.on) stopSim();
+  S.sheet = Math.max(0, Math.min(k, S.sheets.length - 1)); S.items = S.sheets[S.sheet].items; S.selected = null;
+  history = []; future = []; plan = null; check = null;
+  renderSheets(); drawItems(); drawSel(); renderLayers(); renderProps();
+  ensureSources().then(() => { normalizeItems(); lastSnap = snapshot(); drawItems(); renderLayers(); persist(); schedulePlan(); });
+}
+function addSheet() { S.sheets.push({ items: [] }); switchSheet(S.sheets.length - 1); }
+async function removeSheet(k) {
+  if (S.sheets[k].items.length && !await ask(`Remove sheet ${k + 1}?`, 'Everything on it is removed too.', 'Remove sheet')) return;
+  S.sheets.splice(k, 1); if (!S.sheets.length) S.sheets.push({ items: [] });
+  switchSheet(Math.min(S.sheet > k ? S.sheet - 1 : S.sheet, S.sheets.length - 1));
+}
+
+/* ---------- a page of writing ---------- */
+$('a-page').onclick = async () => {
+  try {
+    await loadStyles();
+    if (!writeNow) throw new Error('Is the studio still running?');
+    $('pg-text').value = writeNow.text || '';
+    fillStyles($('pg-style'));
+    const hasWriting = S.items.some(o => !o.hidden && o.src.kind === 'writing');
+    $('pg-where').value = hasWriting ? 'continue' : 'replace';
+    $('pg-where').querySelector('option[value="continue"]').disabled = !S.items.some(o => !o.hidden);
+    await refreshPlacement(true);
+    $('pg-place').innerHTML = placementHtml(S.place, true);
+    $('pg-res').textContent = ''; $('pagedlg').showModal();
+  } catch (e) { toast('Couldn\'t read the Write page', e.message, 'error'); }
+};
+$('pg-go').onclick = async () => {
+  $('pg-go').disabled = true; $('pg-res').textContent = 'Laying it out…';
+  try {
+    const text = $('pg-text').value, st = chosenStyle($('pg-style').value), where = $('pg-where').value;
+    if (!text.trim()) throw new Error('Type something to write first.');
+    if (st.engine === 'model') $('pg-res').textContent = 'Writing it with the AI model… new text can take a few minutes.';
+    const req = { text, style: st.style, engine: st.engine, font: st.font, style_name: st.name || 'Writing',
+      lined: S.lined, settings: S.settings, paper: S.paper, two_pass: S.two_pass };
+    if (where !== 'replace' && S.lined.on) req.keep_shift = S.shift;
+    if (where === 'continue') { const b = inkBottom(); if (b != null) req.after_y = b; }
+    const r = await api('/plot/pages', req);
+    let kept, landAt;
+    if (where === 'continue') {
+      const here = S.sheets[S.sheet];
+      here.items.push(...r.sheets[0].items);
+      S.sheets.splice(S.sheet + 1, 0, ...r.sheets.slice(1));
+      kept = S.sheets.slice(0, S.sheet + 1); landAt = r.sheets[0].items.length ? S.sheet : S.sheet + 1;
+    } else {
+      kept = where === 'append' ? S.sheets.filter(sh => sh.items.length) : [];
+      S.sheets = kept.concat(r.sheets); landAt = kept.length;
+    }
+    S.lined.on = true; $('ln-on').checked = true; paintLined(); S.shift = r.shift; S.place = r.placement; renderPlacement();
+    S.show.rules = true; paintToggles(); drawStage();
+    drawRules(); persist();
+    S.done = {};
+    $('pagedlg').close();
+    await Promise.all(r.sheets.flatMap(sh => sh.items.map(i => loadSource(i.src).catch(() => {}))));
+    switchSheet(landAt);
+    toast(`Laid out on ${r.sheets.length} sheet${r.sheets.length > 1 ? 's' : ''}`,
+      `${r.lines} lines of writing on the ruled lines from ${r.first_row} to ${r.last_row} mm down.` +
+      (r.blocked.length ? `\n${r.blocked.length} ruled line${r.blocked.length > 1 ? 's are' : ' is'} left empty (${r.blocked.map(b => b.y).join(', ')} mm): ` +
+        (r.blocked.some(b => b.why === 'magnet') ? 'a corner magnet is in the way.' : 'the pen can\'t reach.') : '') +
+      '\nThe Paper card and the print jobs list say where to put the sheet each time.', 'good');
+  } catch (e) { $('pg-res').textContent = e.message; }
+  $('pg-go').disabled = false;
+};
+
+/* ---------- paper ---------- */
+$('pp-w').onchange = e => { const v = parseFloat(e.target.value); S.paper.w = isNaN(v) ? 210 : Math.min(230, Math.max(150, v)); e.target.value = S.paper.w; persist(); drawStage(); schedulePlan(); };
+$('pp-h').onchange = e => { const v = parseFloat(e.target.value); S.paper.h = isNaN(v) ? 297 : Math.min(320, Math.max(200, v)); e.target.value = S.paper.h; persist(); drawStage(); schedulePlan(); refreshPlacement(); };
+$('two-pass').onchange = e => { S.two_pass = e.target.checked; persist(); schedulePlan(); refreshPlacement(); };
+
+/* ---------- calibration ---------- */
+async function calStep(step, a, b, out) {
+  try {
+    const r = await api('/plot/calibrate', { step, a, b, dest: $('dest').value, settings: S.settings });
+    M = await api('/plot/machine', { settings: S.settings }); paintMachine(); drawStage(); schedulePlan();
+    if (step === 'measured') out.innerHTML = `<b class="c-ok">Saved.</b> The pen sits at offset X ${r.offset_x.toFixed(1)}, Y ${r.offset_y.toFixed(1)}. Print <b>${r.file}</b>: the check circle should land <b>${r.check[0]} mm</b> from the left edge and <b>${r.check[1]} mm</b> from the top.`;
+    else if (step === 'landed') out.innerHTML = `<b class="c-ok">Corrected</b> by ${Math.abs(r.moved[0])} mm ${r.moved[0] > 0 ? 'right' : 'left'} and ${Math.abs(r.moved[1])} mm ${r.moved[1] > 0 ? 'down' : 'up'}: offset X ${r.offset_x.toFixed(1)}, Y ${r.offset_y.toFixed(1)}.`;
+    else {
+      const what = step === 'pen_set' ? `\nThe paper comes up to ${(r.touch - M.surface).toFixed(1)} mm below the nozzle tip and waits 4 minutes.`
+        : step === 'check' ? `\nThe circle should land ${r.check[0]} mm from the left edge and ${r.check[1]} mm from the top.`
+        : '\nPrint it, then measure to the centre of the circle.';
+      toast('Saved ' + r.file, r.path + what, 'good', [['Show in Finder', () => api('/plot/reveal', { path: r.path })]]);
+    }
+  } catch (e) { toast('Not saved', e.message, 'error'); }
+}
+$('cal-open').onclick = () => { paintMachine(); $('cal').showModal(); };
+$('c-cross').onclick = () => calStep('cross');
+$('c-penset').onclick = () => calStep('pen_set');
+$('c-check').onclick = () => calStep('check');
+$('c-air').onclick = () => calStep('cross_air');
+$('c-measured').onclick = () => { const a = parseFloat($('c-a').value), b = parseFloat($('c-b').value); if (isNaN(a) || isNaN(b)) return toast('Enter both measurements', 'In mm from the paper\'s left and top edges.', 'error'); calStep('measured', a, b, $('c-res1')); };
+$('c-landed').onclick = () => { const a = parseFloat($('c-la').value), b = parseFloat($('c-lb').value); if (isNaN(a) || isNaN(b)) return toast('Enter both measurements', 'Where the check circle landed, in mm from the left and top edges.', 'error'); calStep('landed', a, b, $('c-res2')); };
+$('c-manual').onclick = () => { const x = parseFloat($('c-ox').value), y = parseFloat($('c-oy').value); if (isNaN(x) || isNaN(y)) return; setMachine({ offset_x: x, offset_y: y }); toast('Offset saved', `X ${x}, Y ${y}`, 'good'); };
+document.querySelectorAll('dialog [data-close]').forEach(b => b.onclick = () => b.closest('dialog').close());
+document.querySelectorAll('dialog').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
+
+/* ---------- simulation ---------- */
+const sim = { on: false, playing: false, t: 0, T: 0, speed: 10, strokes: null, starts: null, times: null, drawn: 0, last: 0 };
+const PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>', PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
+async function startSim() {
+  if (!plan || !plan.stats.strokes) { toast('Nothing to preview', 'Add something to the sheet first.'); return; }
+  const r = await api('/plot/plan', { state: planState(), strokes: true });
+  const st = r.settings, z = M;
+  const na = (r.strokes.a || []).length;
+  const strokes = [...(r.strokes.a || []), ...(r.strokes.b || [])], starts = new Float64Array(strokes.length + 1), times = [];
+  const partB = strokes.map((_, i) => i >= na);
+  const dv = st.draw_speed / 60, tv = st.travel_speed / 60, zv = st.z_speed / 60;
+  let t = 0, px = null, py = null;
+  for (let i = 0; i < strokes.length; i++) {
+    const p = strokes[i];
+    if (i === na && i > 0) { t += 4; px = null; }                 // turning the sheet round
+    if (px !== null) t += Math.hypot(p[0] - px, p[1] - py) / tv;
+    t += st.lift / zv + st.dwell_ms / 1000;
+    starts[i] = t;
+    const tt = new Float64Array(p.length / 2); tt[0] = t;
+    for (let j = 2; j < p.length; j += 2) { t += Math.hypot(p[j] - p[j - 2], p[j + 1] - p[j - 1]) / dv; tt[j / 2] = t; }
+    times.push(tt);
+    t += st.lift / zv; px = p[p.length - 2]; py = p[p.length - 1];
+  }
+  starts[strokes.length] = t;
+  Object.assign(sim, { on: true, playing: true, t: 0, T: t, strokes, starts, times, partB, drawn: 0, last: performance.now() });
+  $('simbar').hidden = false; cv.classList.add('simming'); $('g-sel').innerHTML = ''; $('g-travel').innerHTML = '';
+  $('g-sim').innerHTML = '';
+  sim.done = el('g', {}, $('g-sim'));
+  sim.cur = el('path', { class: 'simdone', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.6 }, $('g-sim'));
+  sim.trav = el('line', { class: 'simtravel', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1 }, $('g-sim'));
+  sim.holder = el('line', { class: 'holder', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 2 }, $('g-sim'));
+  sim.nozzle = el('g', { class: 'nozzle' }, $('g-sim'));
+  el('circle', { cx: 0, cy: 0, r: 4, 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1, 'stroke-dasharray': '3 2' }, sim.nozzle);
+  el('circle', { cx: 0, cy: 0, r: 1.2, 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.4 }, sim.nozzle);
+  sim.pen = el('circle', { r: 1.1, class: 'pen' }, $('g-sim'));
+  $('s-play').innerHTML = PAUSE;
+  requestAnimationFrame(simFrame);
+}
+function stopSim() {
+  sim.on = false; sim.playing = false; $('simbar').hidden = true; cv.classList.remove('simming'); $('g-sim').innerHTML = ''; drawSel(); drawTravel();
+}
+function strokeD(p, upto) { let s = 'M' + p[0] + ' ' + p[1]; const n = upto === undefined ? p.length : upto; for (let i = 2; i < n; i += 2) s += 'L' + p[i] + ' ' + p[i + 1]; return s; }
+function bsearch(a, v, hi) { let lo = 0; hi = hi ?? a.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (a[m] <= v) lo = m; else hi = m - 1; } return lo; }
+function simRender() {
+  const { strokes, starts, times, t } = sim;
+  let k = bsearch(starts, t, strokes.length);              // stroke being drawn (or travelled to)
+  if (t < starts[0]) k = -1;
+  const doneUpTo = k < 0 ? 0 : (t >= times[k][times[k].length - 1] ? k + 1 : k);
+  if (doneUpTo < sim.drawn) { sim.done.innerHTML = ''; sim.drawn = 0; }
+  if (doneUpTo > sim.drawn) {
+    let d = ''; for (let i = sim.drawn; i < doneUpTo; i++) d += strokeD(strokes[i]);
+    el('path', { d, class: 'simdone', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.6 }, sim.done); sim.drawn = doneUpTo;
+  }
+  let px, py, cur = '';
+  if (k >= 0 && t < times[k][times[k].length - 1]) {
+    const tt = times[k], p = strokes[k], j = bsearch(tt, t);
+    const f = j + 1 < tt.length ? (t - tt[j]) / Math.max(1e-9, tt[j + 1] - tt[j]) : 0;
+    px = p[2 * j] + (j + 1 < tt.length ? (p[2 * j + 2] - p[2 * j]) * f : 0);
+    py = p[2 * j + 1] + (j + 1 < tt.length ? (p[2 * j + 3] - p[2 * j + 1]) * f : 0);
+    cur = strokeD(p, 2 * j + 2) + `L${px} ${py}`;
+    sim.trav.setAttribute('x1', px); sim.trav.setAttribute('x2', px); sim.trav.setAttribute('y1', py); sim.trav.setAttribute('y2', py);
+  } else {
+    const prev = k >= 0 ? strokes[k] : null, next = strokes[k + 1];
+    const a = prev ? [prev[prev.length - 2], prev[prev.length - 1]] : [next[0], next[1]];
+    const b = next ? [next[0], next[1]] : a;
+    const t0 = k >= 0 ? times[k][times[k].length - 1] : 0, t1 = next ? starts[k + 1] : t0 + 1;
+    const f = Math.min(1, Math.max(0, (t - t0) / Math.max(1e-9, t1 - t0)));
+    px = a[0] + (b[0] - a[0]) * f; py = a[1] + (b[1] - a[1]) * f;
+    sim.trav.setAttribute('x1', a[0]); sim.trav.setAttribute('y1', a[1]); sim.trav.setAttribute('x2', px); sim.trav.setAttribute('y2', py);
+  }
+  sim.cur.setAttribute('d', cur);
+  sim.pen.setAttribute('cx', px); sim.pen.setAttribute('cy', py);
+  const inB = sim.partB[Math.min(sim.strokes.length - 1, Math.max(0, k >= 0 && t < times[k][times[k].length - 1] ? k : k + 1))];
+  const nx = inB ? px + M.offset_x : px - M.offset_x, ny = inB ? py - M.offset_y : py + M.offset_y;
+  sim.nozzle.setAttribute('transform', `translate(${nx} ${ny})`);
+  sim.holder.setAttribute('x1', nx); sim.holder.setAttribute('y1', ny); sim.holder.setAttribute('x2', px); sim.holder.setAttribute('y2', py);
+  $('s-pos').value = Math.round(t / sim.T * 1000);
+  $('s-time').textContent = clock(t) + ' / ' + clock(sim.T) + (sim.partB.some(Boolean) ? (inB ? ' · part 2' : ' · part 1') : '');
+}
+function simFrame(now) {
+  if (!sim.on) return;
+  const dt = Math.min(0.1, (now - sim.last) / 1000); sim.last = now;
+  if (sim.playing) { sim.t = Math.min(sim.T, sim.t + dt * sim.speed); if (sim.t >= sim.T) { sim.playing = false; $('s-play').innerHTML = PLAY; } }
+  simRender();
+  requestAnimationFrame(simFrame);
+}
+$('play').onclick = () => sim.on ? stopSim() : startSim();
+$('s-close').onclick = stopSim;
+$('s-play').onclick = () => { if (sim.t >= sim.T) sim.t = 0; sim.playing = !sim.playing; $('s-play').innerHTML = sim.playing ? PAUSE : PLAY; };
+$('s-pos').oninput = e => { sim.t = e.target.value / 1000 * sim.T; };
+$('s-speed').onclick = e => { const v = e.target.dataset.v; if (!v) return; sim.speed = +v; for (const b of $('s-speed').children) b.classList.toggle('on', b.dataset.v === v); };
+
+/* ---------- toolbar ---------- */
+function paintToggles() { for (const k of ['safe', 'travel', 'rules']) { $('t-' + k).classList.toggle('on', !!S.show[k]); $('t-' + k).setAttribute('aria-pressed', !!S.show[k]); } }
+for (const k of ['safe', 'travel', 'rules']) $('t-' + k).onclick = () => {
+  S.show[k] = !S.show[k]; paintToggles(); persist();
+  if (k === 'safe') drawStage(); else if (k === 'rules') drawRules(); else { if (S.show.travel) schedulePlan(); else drawTravel(); }
+};
+const LN = { first: [0, 150, 30], bottom: [0, 150, 15], left: [0, 120, 30], right: [0, 120, 10], gap: [3, 30, 8] };
+function paintLined() {
+  for (const k in LN) if (document.activeElement !== $('ln-' + k)) $('ln-' + k).value = S.lined[k];
+  $('ln-on').checked = !!S.lined.on; $('ln-box').hidden = !S.lined.on;
+}
+for (const k in LN) $('ln-' + k).addEventListener('change', e => {
+  const [lo, hi, d] = LN[k], v = parseFloat(e.target.value);
+  S.lined[k] = isNaN(v) ? d : Math.min(hi, Math.max(lo, v)); e.target.value = S.lined[k];
+  drawRules(); refreshPlacement();
+});
+$('ln-on').onchange = e => {
+  S.lined.on = e.target.checked; paintLined();
+  if (S.lined.on) { S.show.rules = true; paintToggles(); refreshPlacement(); }
+  else { S.shift = { a: 0, b: 0 }; S.place = null; persist(); drawStage(); schedulePlan(); }
+};
+function placementHtml(p, full) {
+  if (!p) return '<span class="muted">Measure your paper\'s lines above.</span>';
+  if (p.error) return `<span class="c-warn">${esc(p.error)}</span>`;
+  return `<b class="h">Where to put the paper</b><ol>${p.steps.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` +
+    (p.why.length ? `<div class="why">${esc(p.why.join(' '))}</div>` : '') +
+    (p.warnings.length ? `<div class="warn">${esc(p.warnings.join(' '))}</div>` : '') +
+    (full ? `<div class="why">${p.rows} ruled lines, ${S.lined.gap} mm apart; writing starts just right of the margin line and wraps before the lines end.</div>` : '');
+}
+function renderPlacement() {
+  $('placement').innerHTML = placementHtml(S.place);
+  $('placement-top').hidden = !S.lined.on;
+  $('placement-top').innerHTML = placementHtml(S.place);
+  if (M) { paintPlacebar(); drawStage(); }
+}
+$('viewpart').onclick = e => { const v = e.target.dataset.v; if (!v) return; S.viewPart = v; paintPlacebar(); drawStage(); };
+let placeSeq = 0;
+async function refreshPlacement(force) {
+  if (!S.lined.on && !force) return;
+  const id = ++placeSeq;
+  try {
+    const p = await api('/plot/placement', { lined: S.lined, settings: S.settings, paper: S.paper, two_pass: S.two_pass });
+    if (id !== placeSeq) return;
+    S.place = p;
+    if (S.lined.on) {
+      const changed = p.shift.a !== S.shift.a || p.shift.b !== S.shift.b;
+      S.shift = p.shift;
+      if (changed) { drawStage(); schedulePlan(); }
+    }
+  } catch (e) { if (id === placeSeq) S.place = { error: e.message }; }
+  renderPlacement(); persist(); renderJobs();
+}
+$('z-in').onclick = () => zoomAt(1 / 1.3); $('z-out').onclick = () => zoomAt(1.3); $('z-fit').onclick = fitView; $('z-real').onclick = realView;
+$('undo').onclick = undo; $('redo').onclick = redo;
+function applyTheme() {
+  const t = S.theme === 'light' || S.theme === 'dark' ? S.theme : '';
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  $('theme').value = t;
+}
+$('theme').onchange = e => { S.theme = e.target.value || null; applyTheme(); persist(); };
+$('a-lib').onclick = openLibrary;
+$('a-up').onclick = () => $('file').click();
+$('lib-up').onclick = () => $('file').click();
+$('file').onchange = e => { $('lib').close(); uploadFiles([...e.target.files]); e.target.value = ''; };
+$('lib-q').oninput = renderLibrary;
+$('a-write').onclick = addWriting;
+$('a-label').onclick = async () => { const it = await addItem({ kind: 'label', text: 'Label', size: 3.5, tidiness: 0.9 }, 'Label'); if (it) setTimeout(() => { const t = $('x-text'); if (t) { t.focus(); t.select(); } }, 50); };
+$('a-rect').onclick = () => addItem({ kind: 'rect', w: 160, h: 120 }, 'Frame');
+$('a-circle').onclick = () => addItem({ kind: 'circle', d: 80 }, 'Circle');
+$('a-lines').onclick = () => addItem({ kind: 'lines', count: 12, gap: 8, w: 160 }, 'Ruled lines');
+
+/* drag & drop */
+let dragDepth = 0;
+window.addEventListener('dragenter', e => { if ([...e.dataTransfer.types].includes('Files')) { dragDepth++; $('drop').hidden = false; e.preventDefault(); } });
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; $('drop').hidden = true; } });
+window.addEventListener('drop', e => { e.preventDefault(); dragDepth = 0; $('drop').hidden = true; uploadFiles([...e.dataTransfer.files]); });
+
+document.addEventListener('keydown', e => {
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && document.activeElement.type !== 'range';
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveAll(); return; }
+  if (typing) return;
+  if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicate(); return; }
+  if (e.key === 'Escape') { if (sim.on) stopSim(); else select(null); return; }
+  if (e.key === ' ' && sim.on) { e.preventDefault(); $('s-play').click(); return; }
+  if (e.key === 'p' || e.key === 'P') { $('play').click(); return; }
+  if (e.key === '0') { fitView(); return; }
+  if (e.key === '1') { realView(); return; }
+  const it = S.selected && findItem(S.selected);
+  if (!it) return;
+  if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); removeSelected(); return; }
+  if (e.key === 'r' || e.key === 'R') { $('p-r90').click(); return; }
+  const step = e.shiftKey ? 10 : 1, mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+  if (mv) { e.preventDefault(); it.cx += mv[0]; it.cy += mv[1]; updateItemNode(it); drawSel(); renderPropsValues(); clearTimeout(it._nt); it._nt = setTimeout(() => commit(), 300); }
+});
+
+/* ---------- start ---------- */
+async function ensureSources() {
+  await Promise.all(S.items.map(it => loadSource(it.src).catch(() => {})));
+}
+async function init() {
+  buildRanges();
+  const saved = await api('/plot/state').catch(() => ({}));
+  const sheets = Array.isArray(saved.sheets) && saved.sheets.length ? saved.sheets.map(sh => ({ items: sh.items || [] })) : [{ items: saved.items || [] }];
+  Object.assign(S, { sheets, sheet: Math.min(Math.max(0, saved.sheet | 0), sheets.length - 1), name: saved.name || 'plot', selected: saved.selected || null,
+    show: Object.assign({ safe: true, travel: false, rules: false }, saved.show || {}),
+    lined: Object.assign({ on: false, first: 30, bottom: 15, left: 30, right: 10, gap: 8 }, saved.lined || {}),
+    shift: Object.assign({ a: 0, b: 0 }, saved.lined && saved.lined.on ? saved.shift || {} : {}),
+    dest: saved.dest || 'plots', theme: saved.theme || null, paper: Object.assign({ w: 210, h: 297 }, saved.paper || {}),
+    two_pass: saved.two_pass !== false, kind: saved.kind || 'plot', done: saved.done || {}, page: saved.page || {} });
+  S.items = S.sheets[S.sheet].items;
+  applyTheme();
+  requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.add('ready')));
+  const first = await api('/plot/plan', { state: { items: [], settings: saved.settings || {}, paper: S.paper, two_pass: S.two_pass, shift: S.shift } });
+  S.settings = first.settings; M = first.machine;
+  $('name').value = S.name; paintLined(); refreshPlacement();
+  $('pp-w').value = S.paper.w; $('pp-h').value = S.paper.h; $('two-pass').checked = S.two_pass;
+  for (const b of $('kind').children) b.classList.toggle('on', b.dataset.v === S.kind);
+  renderSheets();
+  paintSettings(); paintMachine(); paintToggles(); drawStage(); fitView();
+  await ensureSources();
+  const fresh = normalizeItems();
+  lastSnap = snapshot();
+  drawItems(); renderLayers(); renderProps(); drawSel();
+  if (fresh) persist();
+  schedulePlan();
+  refreshVolumes(); setInterval(refreshVolumes, 4000);
+}
+/* right panel tabs: Print, Paper, Machine */
+function showRight(v) {
+  for (const b of $('rtabs').children) { const on = b.dataset.v === v; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; }
+  document.querySelectorAll('aside.right .tabpanel').forEach(p => p.hidden = p.dataset.tab !== v);
+  try { localStorage.setItem('inkprint.rtab', v); } catch (e) {}
+}
+$('rtabs').onclick = e => { const v = e.target.closest('button')?.dataset.v; if (v) showRight(v); };
+$('rtabs').onkeydown = e => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  const bs = [...$('rtabs').children], i = bs.findIndex(b => b.classList.contains('on'));
+  const n = bs[(i + (e.key === 'ArrowRight' ? 1 : bs.length - 1)) % bs.length]; showRight(n.dataset.v); n.focus();
+};
+let savedTab = 'print';
+try { savedTab = localStorage.getItem('inkprint.rtab') || 'print'; } catch (e) {}
+showRight(['print', 'paper', 'machine'].includes(savedTab) ? savedTab : 'print');
+/* a problem with the plot marks the Print tab, so it is seen from the other tabs too */
+new MutationObserver(() => $('rtabs').children[0].classList.toggle('alert', $('status').classList.contains('bad')))
+  .observe($('status'), { attributes: true, attributeFilter: ['class'] });
+/* the handwritten InkPrint mark in the header */
+(async () => {
+  try {
+    const d = await api('/logo', {});
+    const svg = $('logo');
+    svg.innerHTML = `<g fill="none" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round">${d.paths.map(p => `<path d="${p}"/>`).join('')}</g>`;
+    const bb = svg.getBBox(); svg.setAttribute('viewBox', `${bb.x - 1} ${bb.y - 1} ${bb.width + 2} ${bb.height + 2}`);
+  } catch (e) {}
+})();
+init().catch(e => setStatus('bad', 'The plotter failed to start', [e.message]));
+</script>
+</body>
+</html>
