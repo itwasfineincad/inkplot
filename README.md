@@ -1,72 +1,73 @@
 # InkPrint
 
-InkPrint turns a 3D printer with a clip-on pen holder into a pen plotter for handwriting. Type a letter, and an AI handwriting model (or a single-line font) writes it out. Lay it out on A4 with line drawings and labels, then save G-code that has already passed a set of safety checks.
+**Turn a 3D printer into a handwriting machine.** Type a letter and InkPrint writes it out in realistic
+handwriting: an AI model, or a font made from your own hand. Lay it out on A4 with line drawings and labels,
+then save a print file that has already passed a full set of safety checks.
 
-It was built for a **Bambu Lab X1E** with a **UMTS pen holder** and runs entirely on your Mac. Nothing is uploaded anywhere.
+![InkPrint's Plotter page: handwriting and a Porsche line drawing laid out on an A4 sheet, marked safe to plot](docs/images/plotter.png)
 
-Made by [It Was Fine In CAD](https://github.com/itwasfineincad).
+Built for a **Bambu Lab X1E** with a pen holder clipped to the toolhead. It runs entirely on your Mac; nothing
+is uploaded anywhere. Made by [It Was Fine In CAD](https://github.com/itwasfineincad).
 
-> **Safety first.** A wrong move can drive the pen holder into the printer's frame or the bed magnets. InkPrint never homes the printer, keeps the nozzle inside a measured safe area and checks every file before saving it, but those limits were measured on one machine. Measure your own (see *Your printer* below), and print the **Pen up** rehearsal of every new job before the real one.
+**[Read the step-by-step guide →](docs/GUIDE.md)**
 
 ## What it does
 
-- **Write page**: an AI model writes your text in one of 13 handwriting styles, with sliders for neatness, slant, letter size, joined-up writing and occasional crossed-out mistakes. Each line is written several times and the most readable version is kept. A single-line font gives instant results. Save any mix of settings as a **handwriting style** and use several styles on one page.
-- **Plotter page**: place handwriting, line drawings (25 are included), uploaded SVGs, labels, frames, circles and ruled lines on the sheet. Drag, resize and rotate them; anything the pen can't reach is shown in red.
-- **Writing on lined paper**: measure your paper's lines and InkPrint works out where to put the sheet so the writing lands on them.
-- **Whole pages**: the bottom of an A4 sheet is out of reach, so lines near the bottom are written in a second part with the sheet turned round. Print jobs come with step-by-step instructions.
-- **Fonts page**: make a font from your own handwriting (see below).
-- **Preview**: watch a simulation of the pen, nozzle and holder before you print.
-- **Checked G-code**: every file passes `plotcheck` (safe area, pen height, magnet zones, no homing, no arcs) before it is written. Save it to a folder or straight to the printer's SD card.
+- **Realistic handwriting.** An AI model writes your text in one of 13 hands, with sliders for neatness,
+  slant, size, joined-up letters and the odd crossed-out mistake. Each line is written several times and the
+  most readable version is kept. Or use a single-line font for instant results.
+- **Your own handwriting.** Draw your letters on screen, scan or photograph a filled-in template, or import a
+  font file. InkPrint turns it into a single-line font a pen can follow.
+- **Lay out a page.** Handwriting, 25 built-in line drawings, your own SVGs, labels, frames, circles and ruled
+  lines. Drag, resize and rotate; anything the pen can't reach shows in red.
+- **Whole letters.** Long texts flow over as many sheets as they need. The bottom of an A4 sheet is out of
+  reach, so it is written in a second part with the sheet turned round, and every print job comes with
+  instructions for the paper.
+- **Lined paper.** Measure your paper's lines and InkPrint tells you exactly where to put the sheet so the
+  writing lands on them.
+- **Styles.** Save handwriting settings as styles and mix several hands on one page.
+- **Safe files.** Every file is checked before it is saved: no homing, nozzle inside the measured safe area, pen
+  on the paper and clear of the magnets. Preview the whole plot, rehearse it with the pen raised, and save
+  straight to the printer's SD card.
 
-## Install
+| Write | Fonts |
+|---|---|
+| ![The Write page with AI handwriting on ruled paper](docs/images/write.png) | ![The Fonts page with boxes to draw each letter](docs/images/fonts.png) |
 
-You need macOS and Python 3.11: with [Homebrew](https://brew.sh), run `brew install python@3.11` (a Python 3.11 installed with `uv` works too). About 2 GB of free disk space is needed for TensorFlow and the model.
+## Quick start
 
-1. Download this repository (**Code > Download ZIP**, then unzip it) or clone it:
+You need a Mac with about 2 GB free, and Python 3.11 (`brew install python@3.11` with [Homebrew](https://brew.sh)).
+
+1. **Download**: click **Code > Download ZIP** on this page and unzip it, or
    `git clone https://github.com/itwasfineincad/inkprint.git`
-2. Double-click **Install InkPrint.command**. It makes a Python environment in `~/.venvs/handwriting-synthesis`, installs TensorFlow and the other libraries, and downloads the handwriting model. This takes a few minutes the first time.
-3. Double-click **handwriting/My Handwriting.command**. The studio opens in your browser at `http://127.0.0.1:8765`.
+2. **Install**: double-click **Install InkPrint.command** (5–10 minutes the first time). If macOS says it
+   can't be opened, right-click it and choose **Open**.
+3. **Start**: double-click **handwriting/My Handwriting.command**. The studio opens in your browser.
+4. **Before plotting**: turn off the printer's print monitoring, calibrate the pen (**Plotter > Machine >
+   Calibrate…**) and print the **Pen up** version of every new layout first.
 
-The AI model loads in the background; the first piece of writing takes a little longer.
+The [guide](docs/GUIDE.md) covers each step in detail, plus calibration, whole pages, lined paper, making your
+own font and troubleshooting.
 
-## Before your first plot
-
-1. **Calibrate.** On the Plotter page open **Calibration > Calibrate** and follow the four steps: set the pen length, draw a calibration cross, measure it, and print a check cross. Do this again whenever you move the pen in the holder.
-2. **Turn off the printer's print monitoring** (spaghetti detection, air-printing detection, first layer inspection). The printer extrudes nothing while plotting, and these checks can pause it mid-plot.
-3. **Home with the holder off**, then clip it on. Never home, resume or stop a print with the holder on.
-4. Print the **Pen up** version of a job first and watch it.
-
-## Your printer
-
-The machine model lives in `handwriting-synthesis/plotcheck.py` (safe area for the nozzle, `SAFE_X` and `SAFE_Y`), `handwriting-synthesis/magnets.py` (magnet sizes) and `handwriting-synthesis/calibration.json` (pen length, pad under the paper, pen offset). The defaults are for an X1E with a 256 x 256 mm bed, A4 paper in the back-left corner and the pen 24.5 mm left of and 37 mm in front of the nozzle. Other printers need these values measured and changed.
-
-Check any G-code file on its own:
-
-```bash
-handwriting-synthesis/plotcheck path/to/file.gcode
-```
-
-## Your own handwriting as a font
-
-A pen plotter needs a **single-line** font: one line down the middle of each stroke. Ordinary fonts, including handwriting fonts from Calligraphr or FontCrafter, store outlines, so a plotter draws every stroke twice. The **Fonts** page makes single-line fonts three ways:
-
-- **Draw it**: draw each letter in a box with a mouse, trackpad or drawing tablet.
-- **Scan a template**: click **Download the template**, print it at 100%, write each letter in its box with a dark pen, then scan it or photograph it (all four black corner squares must show). **Upload the scan…** turns it into a font. PNG, JPG, PDF and iPhone photos work.
-- **Import a font file**: a .ttf or .otf (traced down to its centre lines) or a single-line SVG font (Inkscape Hershey Text).
-
-Then pick the font on the Write page (font mode, **Look > Font**), set **Slant** to 0 if you write upright, and **Save style** to use it on the Plotter page. Fonts are saved in `handwriting/fonts/`, which is in `.gitignore`: your handwriting stays on your Mac.
-
-If you use [Claude Code](https://claude.com/claude-code), the `handwriting-font` skill in `.claude/skills/` walks you through it.
+> **Safety first.** A wrong move can drive the pen holder into the printer's frame or the magnets. InkPrint
+> never homes the printer and checks every file, but its limits were measured on one X1E with one holder.
+> On a different setup, measure your own first ([Other printers](docs/GUIDE.md#12-other-printers)).
 
 ## Files
 
 ```
-handwriting/            the studio: server, Write and Plotter pages, plotter engine, fonts
+handwriting/            the studio: server, Write, Plotter and Fonts pages, plotter engine, fonts
 handwriting-synthesis/  safety checker, calibration and magnet tools; the AI model is installed here
 blueprints/             line drawings to plot, with credits
 setup/                  installer and the patch applied to the AI model
+docs/                   the guide and its pictures
+.claude/skills/         a Claude Code skill that coaches you through making a handwriting font
 ```
+
+Check any G-code file on its own: `handwriting-synthesis/plotcheck path/to/file.gcode`
 
 ## Licence
 
-InkPrint's own code is free for noncommercial use under the [PolyForm Noncommercial License 1.0.0](LICENSE). The AI model, the Geist font and the drawings keep their own licences; see [THIRD_PARTY.md](THIRD_PARTY.md).
+InkPrint's own code is free for noncommercial use under the [PolyForm Noncommercial License 1.0.0](LICENSE):
+use it, change it and share it, but don't sell it. The AI handwriting model, the Geist font and the drawings
+keep their own licences; see [THIRD_PARTY.md](THIRD_PARTY.md).

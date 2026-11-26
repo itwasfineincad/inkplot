@@ -56,7 +56,7 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
 .status li { margin-bottom: 4px; }
 .status.ok { background: var(--ok-soft); color: var(--ok); }
 .status.bad { background: var(--warn-soft); color: var(--warn); }
-.status.busy { background: var(--tint); color: var(--muted); }
+.status.busy, .status.idle { background: var(--tint); color: var(--muted); }
 .status.busy b i { animation: pulse 1.2s var(--ease) infinite; }
 .status .warn { color: var(--amber); }
 @keyframes pulse { 50% { opacity: .25; } }
@@ -132,7 +132,7 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
 #cv .passb { fill: none; stroke: var(--part2); stroke-linecap: round; stroke-linejoin: round; }
 #cv .magnet-real { fill: #2f5fb0; stroke: #fffef9; }
 #cv .dimline { stroke: var(--p-ink); fill: none; }
-#cv .dimlbl { fill: var(--p-ink); font-weight: 700; }
+#cv .dimlbl { fill: #ece6d8; font-weight: 600; letter-spacing: .01em; }
 #cv .bedline { fill: none; stroke: #77736a; stroke-dasharray: 3 2; }
 
 /* things floating on the canvas: one look, the ground colour with a hairline */
@@ -715,7 +715,7 @@ function drawPlacement(g, W, H, vb, d) {
     const [px, py] = vb ? [W - x, H - y] : [x, y];
     el('circle', { cx: px, cy: py, r: D / 2, class: 'magnet-real', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.5 }, g);
   }
-  const fs = Math.max(4, 13 * k);
+  const fs = Math.max(3, 11 * k);
   const backEdge = vb ? H : 0, bedBack = vb ? H + d : -d, sideX = vb ? W : 0;
   // back edge of the bed, and the gap to the sheet
   el('line', { x1: vb ? W - 256 : 0, x2: vb ? W : 256, y1: bedBack, y2: bedBack, class: 'bedline', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.5 }, g);
@@ -723,10 +723,11 @@ function drawPlacement(g, W, H, vb, d) {
   if (d > 0) {
     el('path', { d: `M${tx} ${bedBack}V${backEdge}M${tx - 3} ${bedBack}H${tx + 3}M${tx - 3} ${backEdge}H${tx + 3}`, class: 'dimline', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 2 }, g);
   }
-  const t = el('text', { x: tx + 4, y: (bedBack + backEdge) / 2 + (vb ? fs + 2 : -2), class: 'dimlbl', 'font-size': fs }, g);
+  // labels sit on the dark bed around the sheet, centred so they never run off its edge
+  const t = el('text', { x: tx, y: d > 0 ? (bedBack + backEdge) / 2 + fs * 0.35 : backEdge + (vb ? fs + 3 : -4), 'text-anchor': 'middle', class: 'dimlbl', 'font-size': fs }, g);
   t.textContent = d > 0 ? `${d} mm from the back of the bed` : 'against the back of the bed';
-  const side = el('text', { x: sideX + (vb ? 3 : -3), y: H / 2, 'text-anchor': 'middle', class: 'dimlbl', 'font-size': fs * 0.85,
-    transform: `rotate(${vb ? 90 : -90} ${sideX + (vb ? 3 : -3)} ${H / 2})` }, g);
+  const side = el('text', { x: sideX + (vb ? 4 : -4), y: H / 2, 'text-anchor': 'middle', class: 'dimlbl', 'font-size': fs * 0.85,
+    transform: `rotate(${vb ? 90 : -90} ${sideX + (vb ? 4 : -4)} ${H / 2})` }, g);
   side.textContent = vb ? 'this edge against the left side of the bed' : 'against the left side of the bed';
 }
 function paintPlacebar() {
@@ -1293,6 +1294,10 @@ async function runPlanOnce() {
     $('st-strokes').textContent = r.stats.strokes.toLocaleString();
     $('st-ink').textContent = r.stats.draw_mm >= 1000 ? (r.stats.draw_mm / 1000).toFixed(1) + ' m' : r.stats.draw_mm + ' mm';
     $('st-time').textContent = r.stats.strokes ? '≈ ' + fmtTime(r.stats.seconds) : '—';
+    if (r.problems.length && r.problems.every(p => p.startsWith('Nothing to plot'))) {
+      setStatus('idle', 'Nothing on this sheet yet', ['Add handwriting, a drawing or a label from the list on the left.']);
+      $('st-hops').textContent = '—'; refreshJobs(); return;
+    }
     if (r.problems.length) { setStatus('bad', 'Can\'t plot this sheet yet', r.problems, r.warnings); $('st-hops').textContent = '—'; refreshJobs(); return; }
     setStatus('busy', 'Running the safety checks…', [], r.warnings);
     checkTimer = setTimeout(() => runCheck(id), 150);
