@@ -31,6 +31,7 @@ import argparse
 import json
 import math
 import os
+import shutil
 import re
 import subprocess
 import sys
@@ -97,28 +98,59 @@ def make_template(path):
 
 
 # ---------------------------------------------------------------- images
-def load_image(path):
-    """A scan or photo -> grey levels 0 (black) .. 1 (white). PDFs are turned into a picture first (macOS sips)."""
-    from PIL import Image, ImageOps
-    if path.lower().endswith('.pdf'):
+def _pdf_to_png(path):
+    """First page of a PDF as a ~300 dpi PNG: Quick Look or sips on macOS, pdftoppm (poppler-utils) on Linux."""
+    tmp = tempfile.mkdtemp()
+    if sys.platform == 'darwin':
         # Quick Look renders the first page at about 300 dpi for A4 (sips would only give 72 dpi)
-        tmp = tempfile.mkdtemp()
         subprocess.run(['qlmanage', '-t', '-s', '3508', '-o', tmp, path], capture_output=True, timeout=120)
         out = os.path.join(tmp, os.path.basename(path) + '.png')
         if not os.path.exists(out):
             out = os.path.join(tmp, 'page.png')
-            r = subprocess.run(['sips', '-s', 'format', 'png', path, '--out', out], capture_output=True)
-            if r.returncode != 0 or not os.path.exists(out):
-                raise ValueError('Could not read the PDF; save the scan as a PNG or JPG instead.')
-        path = out
-    if path.lower().endswith(('.heic', '.heif')):
-        # iPhone photos: Pillow can't read HEIC here, macOS can
-        tmp = tempfile.mkdtemp()
-        out = os.path.join(tmp, 'photo.jpg')
+            subprocess.run(['sips', '-s', 'format', 'png', path, '--out', out], capture_output=True)
+        if os.path.exists(out):
+            return out
+    elif shutil.which('pdftoppm'):
+        subprocess.run(['pdftoppm', '-png', '-r', '300', '-singlefile', path, os.path.join(tmp, 'page')],
+                       capture_output=True, timeout=120)
+        out = os.path.join(tmp, 'page.png')
+        if os.path.exists(out):
+            return out
+    else:
+        raise ValueError('Could not read the PDF: install poppler-utils (it has pdftoppm), or save the scan as a PNG or JPG.')
+    raise ValueError('Could not read the PDF; save the scan as a PNG or JPG instead.')
+
+
+def _heic_to_jpg(path):
+    """An iPhone photo (HEIC) as a JPG: sips on macOS; pillow-heif or heif-convert on Linux."""
+    tmp = tempfile.mkdtemp()
+    out = os.path.join(tmp, 'photo.jpg')
+    if sys.platform == 'darwin':
         r = subprocess.run(['sips', '-s', 'format', 'jpeg', path, '--out', out], capture_output=True)
-        if r.returncode != 0 or not os.path.exists(out):
-            raise ValueError('Could not read that iPhone photo; open it in Preview, File > Export as JPEG, and upload that.')
-        path = out
+        ok = r.returncode == 0
+    else:
+        ok = False
+        try:
+            import pillow_heif
+            from PIL import Image
+            pillow_heif.register_heif_opener()
+            Image.open(path).convert('RGB').save(out, quality=95)
+            ok = True
+        except Exception:
+            if shutil.which('heif-convert'):
+                ok = subprocess.run(['heif-convert', path, out], capture_output=True).returncode == 0
+    if not ok or not os.path.exists(out):
+        raise ValueError('Could not read that iPhone photo; save it as a JPG and upload that.')
+    return out
+
+
+def load_image(path):
+    """A scan or photo -> grey levels 0 (black) .. 1 (white). PDFs and iPhone photos are turned into pictures first."""
+    from PIL import Image, ImageOps
+    if path.lower().endswith('.pdf'):
+        path = _pdf_to_png(path)
+    if path.lower().endswith(('.heic', '.heif')):
+        path = _heic_to_jpg(path)
     try:
         im = ImageOps.exif_transpose(Image.open(path)).convert('RGB')
     except OSError:

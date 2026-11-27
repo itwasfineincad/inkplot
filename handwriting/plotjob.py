@@ -1301,31 +1301,58 @@ def pages(req):
 
 
 # saving --------------------------------------------------------------------------
+MAC = sys.platform == 'darwin'
+
+
+def mount_roots():
+    """Folders where removable disks appear: /Volumes on macOS; /media and /run/media on Linux."""
+    if MAC:
+        return ['/Volumes']
+    user = os.environ.get('USER') or os.path.basename(os.path.expanduser('~'))
+    return [os.path.join('/media', user), os.path.join('/run/media', user), '/media', '/mnt']
+
+
+def on_removable(folder):
+    folder = os.path.realpath(folder)
+    return any(folder.startswith(os.path.realpath(r) + os.sep) for r in mount_roots())
+
+
 def volumes():
     """Mounted disks a file could go to (e.g. the printer's microSD card)."""
-    out = []
-    try:
-        names = sorted(os.listdir('/Volumes'))
-    except OSError:
-        return out
-    for n in names:
-        p = os.path.join('/Volumes', n)
-        if not os.path.ismount(p) or os.path.realpath(p) == '/' or n.startswith('.') or 'TimeMachine' in n:
-            continue
-        if not os.access(p, os.W_OK):
-            continue
+    out, seen = [], set()
+    for root in mount_roots():
         try:
-            total = shutil.disk_usage(p).total
+            names = sorted(os.listdir(root))
         except OSError:
             continue
-        try:
-            top = os.listdir(p)
-        except OSError:
-            top = []
-        # a card that has been in the Bambu printer has its timelapse folder, or G-code files on it
-        printer = 'timelapse' in top or any(f.lower().endswith('.gcode') and not f.startswith('.') for f in top)
-        out.append(dict(name=n, path=p, gb=round(total/1e9, 1), card=total < 300e9, printer=printer))
+        for n in names:
+            p = os.path.join(root, n)
+            if p in seen or n in seen:
+                continue
+            seen.update((p, n))
+            v = _volume(p, n)
+            if v:
+                out.append(v)
     return out
+
+
+def _volume(p, n):
+    """One mounted disk, or None if it isn't somewhere a plot file can go."""
+    if not os.path.ismount(p) or os.path.realpath(p) == '/' or n.startswith('.') or 'TimeMachine' in n:
+        return None
+    if not os.access(p, os.W_OK):
+        return None
+    try:
+        total = shutil.disk_usage(p).total
+    except OSError:
+        return None
+    try:
+        top = os.listdir(p)
+    except OSError:
+        top = []
+    # a card that has been in the Bambu printer has its timelapse folder, or G-code files on it
+    printer = 'timelapse' in top or any(f.lower().endswith('.gcode') and not f.startswith('.') for f in top)
+    return dict(name=n, path=p, gb=round(total/1e9, 1), card=total < 300e9, printer=printer)
 
 
 def _dest_dir(dest):
@@ -1348,7 +1375,7 @@ def safe_name(name, default='plot'):
 def write_file(dest, filename, lines):
     folder = _dest_dir(dest)
     path = os.path.join(folder, filename)
-    on_card = folder.startswith('/Volumes/')
+    on_card = on_removable(folder)
     # on a card write straight to the file: a temporary name would leave a stray entry the printer lists
     tmp = path if on_card else path + '.part'
     with open(tmp, 'w') as f:
@@ -1366,8 +1393,9 @@ def _no_mac_extras(path):
     file on SD cards (FAT / exFAT). The printer lists those as files that do
     nothing, so strip the extra information and remove the hidden file.
     """
-    import subprocess
-    subprocess.run(['xattr', '-c', path], capture_output=True)
+    if MAC:
+        import subprocess
+        subprocess.run(['xattr', '-c', path], capture_output=True)
     shadow = os.path.join(os.path.dirname(path), '._' + os.path.basename(path))
     if os.path.isfile(shadow):
         os.remove(shadow)
@@ -1381,7 +1409,7 @@ MAC_FILES = ('.DS_Store', '.apdisk', '.VolumeIcon.icns', '._.Trashes', '._.DS_St
 def card_junk(dest):
     """What macOS has left on a card: (list of paths, total bytes, gcode files sitting in the card's Trash)."""
     folder = _dest_dir(dest)
-    if not folder.startswith('/Volumes/'):
+    if not on_removable(folder):
         raise ValueError('Choose the SD card under "Save to" first.')
     found, size, trashed = [], 0, []
     for name in os.listdir(folder):
@@ -1417,13 +1445,46 @@ def eject_card(dest):
     """Eject a card so it can be pulled out safely (pulling it without ejecting can leave it unreadable)."""
     import subprocess
     folder = _dest_dir(dest)
-    if not folder.startswith('/Volumes/'):
+    if not on_removable(folder):
         raise ValueError('Choose the SD card under "Save to" first.')
-    r = subprocess.run(['diskutil', 'eject', folder], capture_output=True, text=True, timeout=60)
+    if MAC:
+        r = subprocess.run(['diskutil', 'eject', folder], capture_output=True, text=True, timeout=60)
+    else:
+        r = _eject_linux(folder, subprocess)
     if r.returncode != 0:
         raise ValueError('The card could not be ejected: {}. Close any Finder window or file using it, then try again.'
                          .format((r.stderr or r.stdout).strip() or 'it is busy'))
     return dict(ok=True, card=os.path.basename(folder))
+
+
+def _eject_linux(folder, subprocess):
+    """Unmount (and power off where possible) a card on Linux: udisksctl, then gio, then umount."""
+    subprocess.run(['sync'], capture_output=True)
+    dev = subprocess.run(['findmnt', '-n', '-o', 'SOURCE', '--target', folder], capture_output=True, text=True).stdout.strip()
+    tries = []
+    if dev and shutil.which('udisksctl'):
+        tries.append(['udisksctl', 'unmount', '-b', dev])
+    if shutil.which('gio'):
+        tries.append(['gio', 'mount', '-u', folder])
+    tries.append(['umount', folder])
+    r = None
+    for cmd in tries:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if r.returncode == 0:
+            if dev and cmd[0] == 'udisksctl':
+                subprocess.run(['udisksctl', 'power-off', '-b', dev], capture_output=True, text=True, timeout=60)
+            break
+    return r
+
+
+def reveal(path):
+    """Show a file in Finder (macOS) or open its folder in the file manager (Linux)."""
+    import subprocess
+    if MAC:
+        subprocess.run(['open', '-R', path] if os.path.isfile(path) else ['open', path])
+    else:
+        folder = path if os.path.isdir(path) else os.path.dirname(path)
+        subprocess.Popen(['xdg-open', folder], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def clean_card(dest, really=False):
@@ -1518,8 +1579,9 @@ def _remove(p):
 
 
 def subprocess_xattr_clear(path):
-    import subprocess
-    subprocess.run(['xattr', '-c', path], capture_output=True)
+    if MAC:
+        import subprocess
+        subprocess.run(['xattr', '-c', path], capture_output=True)
 
 
 def export(state, kind, dest, part='a', suffix='', title=None):

@@ -50,3 +50,6 @@ handwriting-synthesis/*
 
 # graphify knowledge graph (local only)
 graphify-out/
+
+# launch post drafts (posted by hand, not published here)
+launch/

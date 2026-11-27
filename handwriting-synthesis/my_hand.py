@@ -2,9 +2,11 @@
 Default settings for the AI handwriting (tuned to look like a real person's everyday writing).
 
 The model sometimes loses its place partway through a line and scribbles.
-To avoid that, each line is generated several times, read back with macOS
-text recognition, and the version that reads most like the intended text
-is kept.
+To avoid that, each line is generated several times, read back with text
+recognition (macOS's own, or tesseract on Linux when it is installed), and the
+version that reads most like the intended text is kept. Without either, the
+version whose length is closest to the middle of the tries is kept: a derailed
+line comes out much longer (scribbles) or shorter than the others.
 
 Usage:
     from my_hand import write_plotter_svg, write_my_hand
@@ -15,13 +17,15 @@ or from the command line, see handwrite.py.
 """
 import difflib
 import os
+import shutil
+import subprocess
+import sys
 import tempfile
 
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-from ocrmac import ocrmac
 
 import drawing
 from demo import Hand
@@ -66,6 +70,57 @@ def _split_strokes(coords):
     return [s for s in np.split(coords, np.where(coords[:, 2] == 1)[0] + 1) if len(s) > 1]
 
 
+def _ocr(path):
+    """Text read from a picture: macOS text recognition, else tesseract if installed, else None."""
+    if sys.platform == 'darwin' and os.environ.get('INKPLOT_OCR') != 'off':
+        try:
+            from ocrmac import ocrmac
+            return ' '.join(t for t, _, _ in ocrmac.OCR(path, recognition_level='accurate').recognize())
+        except ImportError:
+            pass
+    exe = shutil.which('tesseract') if os.environ.get('INKPLOT_OCR') != 'off' else None
+    if exe:
+        try:
+            r = subprocess.run([exe, path, 'stdout', '--psm', '7'], capture_output=True, text=True, timeout=30)
+            if r.returncode == 0:
+                return r.stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return None
+
+
+def can_read():
+    """Whether text recognition is available (else readability falls back to the line's length)."""
+    if os.environ.get('INKPLOT_OCR') == 'off':
+        return False
+    return (sys.platform == 'darwin' and _has_ocrmac()) or shutil.which('tesseract') is not None
+
+
+def _has_ocrmac():
+    try:
+        import ocrmac  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def _width(coords):
+    return float(coords[:, 0].max() - coords[:, 0].min()) if len(coords) else 0.0
+
+
+def scores(candidates, line, slant, x_scale):
+    """
+    0-1 for each try of one line: how well it reads (text recognition), or, without it, how close its
+    length is to the middle of all the tries (the length varies a lot between writers, so it is
+    compared with the other tries, not with a fixed number).
+    """
+    if len(candidates) > 1 and not can_read():
+        widths = [_width(_line_coords(c, slant, x_scale)) for c in candidates]
+        mid = float(np.median([w for w in widths if w > 0] or [1.0]))
+        return [max(0.0, 1.0 - 2.5 * abs(np.log(max(w, 1e-6) / mid))) for w in widths]
+    return [_readability(c, line, slant, x_scale) for c in candidates]
+
+
 def _readability(offsets, line, slant, x_scale):
     """Similarity (0-1) between the intended text and what OCR reads from the strokes."""
     coords = _line_coords(offsets, slant, x_scale)
@@ -81,9 +136,11 @@ def _readability(offsets, line, slant, x_scale):
     plt.close(fig)
 
     try:
-        text = ' '.join(t for t, _, _ in ocrmac.OCR(path, recognition_level='accurate').recognize())
+        text = _ocr(path)
     finally:
         os.remove(path)
+    if text is None:
+        return 1.0
     return difflib.SequenceMatcher(None, text.lower(), line.lower()).ratio()
 
 
@@ -101,10 +158,10 @@ def generate(lines, attempts=6, verbose=True, **overrides):
     best = []
     for i, line in enumerate(text_lines):
         candidates = samples[i*attempts:(i + 1)*attempts]
-        scores = [_readability(c, line, s['slant'], s['x_scale']) for c in candidates]
-        best.append(candidates[int(np.argmax(scores))])
+        sc = scores(candidates, line, s['slant'], s['x_scale'])
+        best.append(candidates[int(np.argmax(sc))])
         if verbose:
-            print('  readability {:.2f}  {}'.format(max(scores), line))
+            print('  readability {:.2f}  {}'.format(max(sc), line))
 
     it = iter(best)
     return s, [next(it) if line else None for line in lines]

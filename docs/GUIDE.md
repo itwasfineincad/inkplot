@@ -31,42 +31,23 @@ Everything from unboxing to a finished letter, one step at a time. If you only r
 | **Paper** | A4 (210 x 297 mm). Other sizes can be set on the Paper tab. |
 | **Magnets** | Four round magnets, about 10 mm across and 5 mm tall, to hold the paper flat |
 | **Pad** (optional) | A thin, flat sheet under the paper, e.g. 0.5 mm card, so the pen presses evenly |
-| **Mac** | macOS on Apple silicon or Intel, about 2 GB of free disk space |
+| **Computer** | A Mac (Apple silicon or Intel) or a Linux PC (Ubuntu, Debian, Fedora…), about 2 GB of free disk space |
 
 Plotting doesn't need filament: the printer only moves, the pen does the writing.
 
 ## 2. Install InkPlot
 
-**a. Python 3.11.** InkPlot's handwriting model needs exactly Python 3.11.
-
-1. Install [Homebrew](https://brew.sh) if you don't have it: copy the line from its home page into the
-   **Terminal** app and press Return.
-2. In Terminal, run:
-
-   ```bash
-   brew install python@3.11
-   ```
-
-**b. Download InkPlot.** On the [InkPlot page](https://github.com/itwasfineincad/inkplot), click the green
-**Code** button, then **Download ZIP**. Double-click the ZIP to unzip it and move the folder somewhere permanent,
-such as your Documents folder.
-
-Or, if you use git:
+Open **Terminal** (on a Mac: Applications > Utilities > Terminal), paste this line and press Return:
 
 ```bash
-git clone https://github.com/itwasfineincad/inkplot.git
+curl -fsSL https://raw.githubusercontent.com/itwasfineincad/inkplot/main/setup/get.sh | bash
 ```
 
-**c. Run the installer.** In the InkPlot folder, double-click **Install InkPlot.command**.
-
-> **"Install InkPlot.command" can't be opened** (or "Apple could not verify…")? macOS asks this the first
-> time you open anything downloaded that isn't from the App Store. Right-click the file, choose **Open**,
-> then **Open** again. On newer macOS: **System Settings > Privacy & Security**, scroll down, and click
-> **Open Anyway** next to the file's name. The same applies to **My Handwriting.command** the first time.
-
-A Terminal window opens and shows its progress:
+It puts InkPlot in a folder called **InkPlot** in your home folder and installs everything it needs,
+including Python 3.11 if you don't have it (no password needed). It shows its progress:
 
 ```
+== Getting InkPlot into ~/InkPlot
 == Checking for Python 3.11
 == Making the Python environment in ~/.venvs/handwriting-synthesis
 == Installing libraries (TensorFlow is large; this can take a few minutes)
@@ -74,12 +55,32 @@ A Terminal window opens and shows its progress:
 == Done
 ```
 
-It takes 5–10 minutes the first time. Running it again later is safe: it skips what's already done.
+It takes 5–10 minutes the first time. **To update InkPlot later, run the same line again**: your fonts,
+layouts and calibration are kept.
+
+**On Linux**, two optional extras help: `tesseract-ocr` (better AI handwriting: it picks the most readable
+try of each line) and `poppler-utils` (font templates scanned as PDF). On Ubuntu or Debian:
+
+```bash
+sudo apt install tesseract-ocr poppler-utils
+```
+
+Rather download it yourself? Click **Code > Download ZIP** on the
+[InkPlot page](https://github.com/itwasfineincad/inkplot), unzip it, then run `setup/install.sh` in that folder
+(on a Mac you can double-click **Install InkPlot.command**).
 
 ## 3. Start the studio
 
-Double-click **handwriting/My Handwriting.command**. A Terminal window opens (leave it open: it *is* the
-studio) and your browser opens **http://127.0.0.1:8765**. To stop the studio, close that Terminal window.
+- **Mac**: double-click **handwriting/My Handwriting.command** in the InkPlot folder.
+- **Linux**: choose **InkPlot** in your app menu, or run `inkplot` in a terminal.
+- Either system: run `~/InkPlot/inkplot` in Terminal.
+
+A Terminal window opens (leave it open: it *is* the studio) and your browser opens **http://127.0.0.1:8765**.
+To stop the studio, close that window or press Ctrl+C.
+
+> **"My Handwriting.command" can't be opened** (or "Apple could not verify…")? macOS asks this the first time.
+> Right-click it, choose **Open**, then **Open** again. On newer macOS: **System Settings > Privacy & Security**,
+> scroll down, and click **Open Anyway**.
 
 The studio has three pages, in the bar at the top:
 
@@ -253,8 +254,9 @@ excluded from git, so they can't be published by accident.
 | The printer **can't read the SD card** | Eject it first (**Plot… > Save to > Eject**). **Clean card** next to it removes hidden macOS files the printer may show as junk. |
 | The **first AI writing is slow** | Normal: the model loads for about 30 seconds. After that each line takes a few seconds. |
 | The page looks **unstyled** after updating InkPlot | Restart the studio: close its Terminal window and double-click **My Handwriting.command** again. |
-| **"can't be opened"** when double-clicking a .command file | Right-click it, choose **Open**, then **Open**. Or use System Settings > Privacy & Security > Open Anyway. |
-| The installer says **Python 3.11 is needed** | Run `brew install python@3.11` in Terminal, then double-click the installer again. |
+| **"can't be opened"** when double-clicking a .command file (Mac) | Right-click it, choose **Open**, then **Open**. Or use System Settings > Privacy & Security > Open Anyway. |
+| The installer says **'patch' or 'git' is needed** (Linux) | Run `sudo apt install patch`, then run the install line again. |
+| **`inkplot`: command not found** (Linux) | Open a new terminal, or run `~/InkPlot/inkplot`. |
 | An accent sits on the wrong letter, or the AI writing has a scribble | Click **Shuffle** for a new attempt, or raise **Neatness**. |
 
 To check any G-code file yourself, run this in Terminal from the InkPlot folder:

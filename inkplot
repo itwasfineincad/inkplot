@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Start InkPlot (macOS and Linux): the studio opens in your web browser.
+# Close this window, or press Ctrl+C, to stop it.
+set -e
+SRC="$0"
+while [ -L "$SRC" ]; do                      # follow the ~/.local/bin/inkplot link back to this folder
+  T="$(readlink "$SRC")"
+  case "$T" in /*) SRC="$T" ;; *) SRC="$(dirname "$SRC")/$T" ;; esac
+done
+ROOT="$(cd "$(dirname "$SRC")" && pwd)"
+PY="${INKPLOT_VENV:-$HOME/.venvs/handwriting-synthesis}/bin/python"
+if [ ! -x "$PY" ]; then
+  echo "InkPlot isn't installed yet. Run:  $ROOT/setup/install.sh"
+  exit 1
+fi
+export TF_CPP_MIN_LOG_LEVEL=3
+cd "$ROOT/handwriting"
+exec "$PY" handwriting_ui.py "$@" 2> >(grep -v -E "WARNING|Instructions for updating|deprecat|LSTMCell|non-resource|^\s*$|^  " >&2)

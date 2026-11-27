@@ -340,8 +340,9 @@ def generate(text, d):
                 samples = _sample([t for t in part for _ in range(n)], s['neatness'], s['writer'])
                 progress.update(phase='checking', done=0, total=len(part))
                 for i, t in enumerate(part):
-                    for c in samples[i*n:(i + 1)*n]:
-                        sc = _mh._readability(c[:, :3], t, s['slant'], s['width']) if n > 1 or r else 1.0
+                    cands = samples[i*n:(i + 1)*n]
+                    scs = _mh.scores([c[:, :3] for c in cands], t, s['slant'], s['width']) if n > 1 or r else [1.0]*len(cands)
+                    for sc, c in zip(scs, cands):
                         if t not in best or sc > best[t][0]:
                             best[t] = (sc, c)
                     progress.update(done=i + 1)

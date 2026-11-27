@@ -1,0 +1,45 @@
+name: Something went wrong
+description: A problem installing, writing, laying out or plotting
+labels: [bug]
+body:
+  - type: input
+    id: printer
+    attributes:
+      label: Printer
+      description: Make and model, e.g. Bambu Lab X1E
+    validations:
+      required: true
+  - type: input
+    id: profile
+    attributes:
+      label: Printer profile in InkPlot
+      description: Plotter > Machine > Printer, e.g. "Bambu Lab X1E" or the name of your own profile
+    validations:
+      required: true
+  - type: input
+    id: holder
+    attributes:
+      label: Pen holder
+      description: Which holder, and how far the pen sticks out below the nozzle
+  - type: dropdown
+    id: computer
+    attributes:
+      label: Computer
+      options:
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw. Error messages and screenshots help.
+    validations:
+      required: true
+  - type: textarea
+    id: gcode
+    attributes:
+      label: First lines of the G-code file (if a plot went wrong)
+      description: The first 20 lines record the printer, pen, pad and offset the file was made for.
+      render: text

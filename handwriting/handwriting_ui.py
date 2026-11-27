@@ -257,10 +257,11 @@ class Handler(BaseHTTPRequestHandler):
             self._send(dict(id=iid))
         elif path == '/plot/reveal':
             target = os.path.realpath(req.get('path') or '')
-            allowed = [os.path.realpath(plotjob.PLOTS), os.path.realpath(os.path.expanduser('~/Downloads')), '/Volumes']
+            allowed = [os.path.realpath(plotjob.PLOTS), os.path.realpath(os.path.expanduser('~/Downloads'))] + \
+                [os.path.realpath(r) for r in plotjob.mount_roots()]
             if not any(target.startswith(a + os.sep) for a in allowed) or not os.path.exists(target):
                 raise ValueError('Can only show saved plot files.')
-            subprocess.run(['open', '-R', target])
+            plotjob.reveal(target)
             self._send({'ok': True})
         else:
             self._send({'error': 'not found'}, code=404)
@@ -356,7 +357,7 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == '/reveal':
                 name = os.path.basename(req.get('name', ''))
                 target = os.path.join(OUT, name)
-                subprocess.run(['open', '-R', target] if name and os.path.exists(target) else ['open', OUT])
+                plotjob.reveal(target if name and os.path.exists(target) else OUT)
                 self._send({'ok': True})
             else:
                 self._send({'error': 'not found'}, code=404)
