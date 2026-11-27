@@ -4,7 +4,7 @@ No-go zones for the magnets that hold the paper.
 The paper is always A4 portrait pushed into the bed's back-left corner, with a
 magnet at each corner. The bed is only 256 mm deep, so the bottom of the
 sheet hangs off the front; the bottom two magnets sit on the bed's front
-edge, 256 mm down the sheet. Each zone is a square measured in from its
+edge (256 mm down the sheet on a Bambu X1E; the bed depth in the printer profile). Each zone is a square measured in from its
 corner; plotcheck keeps the pen out of them while drawing and lifts it over
 them when travelling.
 
@@ -19,9 +19,16 @@ import json
 import os
 import sys
 
-FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'magnets.json')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import printers  # noqa: E402
+
+FILE = os.path.join(printers.CONFIG, 'magnets.json')
 PAPER_W = 210.0          # A4 portrait width
-ON_BED = 256.0           # how far down the sheet the bed reaches (its front edge)
+
+
+def on_bed():
+    """How far down the sheet the bed reaches (its front edge): the bed's depth in the printer profile."""
+    return float(printers.current()['bed'][1])
 
 
 def load():
@@ -42,7 +49,7 @@ def zones(d=None, shift=0.0):
     """
     d = d or load()
     s, dia = d['size'], d.get('diameter', 10.0)
-    front = ON_BED - shift
+    front = on_bed() - shift
     # the back magnets sit as far back as they can: when the sheet is moved forward they go partly on the bed
     # behind it (centred on the sheet's back edge, or pushed against the back of the bed), so they only cover
     # a strip along the sheet's back edge; 2 mm extra for placing them by hand

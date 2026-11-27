@@ -45,11 +45,16 @@ import os
 import sys
 
 import plotcheck
+import printers
 
-CAL_X, CAL_Y = 128.0, 180.0      # where the nozzle goes for the calibration cross
-BED_BACK = 256.0                 # bed Y of the back edge, where the paper's top edge sits
 PAPER_W, PAPER_H = 210.0, 297.0  # A4 portrait
-MEMORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'calibration.json')
+MEMORY = os.path.join(printers.CONFIG, 'calibration.json')
+
+
+def cal_point(p=None):
+    """Where the nozzle goes for the calibration cross (X 128, Y 180 on a Bambu X1E): from the printer profile."""
+    x, y = (p or printers.current())['cal']
+    return float(x), float(y)
 
 
 def recall():
@@ -60,11 +65,14 @@ def recall():
 
 
 def remember(**kw):
-    """Merge values into calibration.json (pen length, offset, check spot)."""
+    """Merge values into calibration.json (pen length, offset, check spot). A new offset also records the
+    printer profile it was measured on, so switching printers asks for a new calibration."""
     try:
         mem = json.load(open(MEMORY))
     except (OSError, ValueError):
         mem = {}
+    if 'offset_x' in kw or 'offset_y' in kw:
+        kw.setdefault('printer', printers.current()['id'])
     mem.update(kw)
     json.dump(mem, open(MEMORY, 'w'), indent=1)
 
@@ -75,10 +83,15 @@ def cross(cx, cy, size=6.0, ring=2.5):
     return [[(cx - size, cy), (cx + size, cy)], [(cx, cy - size), (cx, cy + size)], circle]
 
 
-def gcode(paths, title, z_draw, z_lift):
-    g = ['; ' + title,
-         '; Home from the printer screen BEFORE clipping on the holder. Never home with it attached.',
-         'G90', 'G21', 'G1 Z{:.3f} F600 ; high enough to pass over the magnets'.format(z_lift + 6), 'G4 P120']
+def head(title, with_offset=False):
+    """First lines of every calibration file: title, the setup stamp, G90/G21 and the printer's own start lines."""
+    return ['; ' + title, plotcheck.stamp_line(with_offset),
+            '; Home from the printer screen BEFORE clipping on the holder. Never home with it attached.',
+            'G90', 'G21'] + printers.start_lines()
+
+
+def gcode(paths, title, z_draw, z_lift, with_offset=False):
+    g = head(title, with_offset) + ['G1 Z{:.3f} F600 ; high enough to pass over the magnets'.format(z_lift + 6), 'G4 P120']
     for k, path in enumerate(paths):
         g.append('G0 X{:.3f} Y{:.3f} F6000'.format(*path[0]))
         if k == 0:
@@ -86,7 +99,7 @@ def gcode(paths, title, z_draw, z_lift):
         g += ['G1 Z{:.3f} F600'.format(z_draw), 'G4 P120']
         g += ['G1 X{:.3f} Y{:.3f} F1500'.format(x, y) for x, y in path[1:]]
         g.append('G1 Z{:.3f} F600'.format(z_lift))
-    g += ['G1 Z{:.3f} F600'.format(z_lift + 10), '; done - pen lifted; take the holder off before homing']
+    g += ['G1 Z{:.3f} F600'.format(z_lift + 10)] + printers.end_lines() + ['; done - pen lifted; take the holder off before homing']
     return g
 
 
@@ -97,14 +110,18 @@ def from_measurement(a, b):
     round-numbered spot in the middle of what the pen can reach on the paper, and
     the nozzle paths for a check cross there.
     """
+    CAL_X, CAL_Y = cal_point()
+    BACK = plotcheck.bed_back()
+    SAFE_X, SAFE_Y = plotcheck.limits()
     ox = a - CAL_X                      # pen x on the bed is a (paper's left edge = bed X0)
-    oy = (BED_BACK - b) - CAL_Y         # pen y on the bed is 256 - b (paper's top edge = back of the bed)
-    x0 = max(plotcheck.SAFE_X[0] + ox, 0) + 15
-    x1 = min(plotcheck.SAFE_X[1] + ox, PAPER_W) - 15
-    y0 = max(BED_BACK - (plotcheck.SAFE_Y[1] + oy), 0) + 15
-    y1 = min(BED_BACK - (plotcheck.SAFE_Y[0] + oy), PAPER_H) - 15
+    oy = (BACK - b) - CAL_Y             # pen y on the bed is BACK - b (paper's top edge = back of the bed)
+    x0 = max(SAFE_X[0] + ox, 0) + 15
+    x1 = min(SAFE_X[1] + ox, PAPER_W) - 15
+    y0 = max(BACK - (SAFE_Y[1] + oy), 0) + 15
+    y1 = min(BACK - (SAFE_Y[0] + oy), PAPER_H) - 15
     ca, cb = round((x0 + x1)/2/5)*5, round((y0 + y1)/2/5)*5
-    return ox, oy, (ca, cb), cross(ca - ox, BED_BACK - cb - oy)
+    return ox, oy, (ca, cb), cross(ca - ox, BACK - cb - oy)
+
 
 
 def save(path, lines):
@@ -135,6 +152,7 @@ def main():
     ap.add_argument('--z-test', type=float, metavar='P',
                     help='pen height test; P = how far the pen tip sticks out below the nozzle, in mm')
     args = ap.parse_args()
+    CAL_X, CAL_Y = cal_point()
     mem = recall()
     if args.surface is not None:
         if args.surface < 0:
@@ -167,11 +185,10 @@ def main():
             ap.error('P = {} looks too small: the pen would be driven into the bed. Measure again '
                      '(with UMTS it is usually about 17 mm).'.format(P))
         lift = S + P + 5
-        g = ['; Pen height test: one dash at each height, left to right: ' + ', '.join('Z{}'.format(z) for z in heights),
-             '; Home from the printer screen BEFORE clipping on the holder. Never home with it attached.',
-             'G90', 'G21', 'G1 Z{:.3f} F600'.format(lift), 'G4 P120']
+        g = head('Pen height test: one dash at each height, left to right: ' + ', '.join('Z{}'.format(z) for z in heights)) + [
+             'G1 Z{:.3f} F600'.format(lift), 'G4 P120']
         for k, z in enumerate(heights):
-            x = 100 + 9*k
+            x = CAL_X - 28 + 9*k
             g += ['G0 X{:.3f} Y{:.3f} F6000'.format(x, CAL_Y), 'G1 Z{:.3f} F300'.format(z), 'G4 P300',
                   'G1 X{:.3f} Y{:.3f} F600'.format(x + 6, CAL_Y), 'G1 Z{:.3f} F600'.format(lift)]
         g += ['G1 Z{:.3f} F600'.format(lift + 10), '; done - pen lifted; take the holder off before homing']
@@ -241,9 +258,9 @@ def main():
     print('    (the pen sits {} and {} the nozzle)'.format(side, depth))
 
     path = os.path.join(args.out, 'calibration_check.gcode')
-    save(path, gcode(nozzle, 'Check cross: should land {} mm from the left edge, {} mm from the top edge'.format(ca, cb),
-                     args.z_draw, args.z_lift))
     remember(offset_x=ox, offset_y=oy, check=[ca, cb])
+    save(path, gcode(nozzle, 'Check cross: should land {} mm from the left edge, {} mm from the top edge'.format(ca, cb),
+                     args.z_draw, args.z_lift, with_offset=True))
     print('\nWrote ' + path)
     print('Print it on paper in the same corner. The circle centre should be:')
     print('    {} mm from the paper\'s left edge'.format(ca))
@@ -252,7 +269,7 @@ def main():
     print('    ./calibrate --landed <from left edge> <from top edge>')
     print('\nIn BambuPlot, with the paper in that corner:')
     print('    ruler X = distance from the paper\'s left edge')
-    print('    ruler Y = 256 - distance from the paper\'s top edge')
+    print('    ruler Y = {:g} - distance from the paper\'s top edge'.format(plotcheck.bed_back()))
 
 
 if __name__ == '__main__':

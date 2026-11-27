@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>InkPrint · Plotter</title>
+<title>InkPlot · Plotter</title>
 <meta name="description" content="Lay out handwriting and line drawings on paper and save checked G-code for a 3D printer with a pen holder.">
 <meta name="theme-color" content="#e6dbc7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#13182a" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#181818" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/app.css">
 <style>
@@ -39,17 +39,17 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
 .layers li:hover { background: var(--tint); }
 .layers li.on { background: var(--tint-2); }
 .layers li .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.layers li .badge { font-size: 13px; padding: 0 6px; border-radius: 4px; background: var(--amber-soft); color: var(--amber); font-weight: 500; }
+.layers li .badge { font-size: 12px; padding: 0 6px; border-radius: 4px; background: var(--amber-soft); color: var(--amber); font-weight: 500; }
 .layers li .badge.err { background: var(--warn-soft); color: var(--warn); }
 .layers li button { height: 28px; width: 28px; padding: 0; background: transparent; color: var(--muted); }
 .layers li button:hover { color: var(--ink); background: var(--tint); transform: none; }
 .layers li.off .nm { opacity: .5; text-decoration: line-through; }
-.empty-list { color: var(--muted); font-size: 13px; padding: 4px 0; }
+.empty-list { color: var(--muted); font-size: 12px; padding: 4px 0; }
 #props .grid2 { gap: 12px; }
 #props .row.mt button { flex: 1; }
 
 /* print panel */
-.status { border-radius: var(--r-sm); padding: 10px 12px; font-size: 13px; line-height: 18px; margin-bottom: 16px; }
+.status { border-radius: var(--r-sm); padding: 10px 12px; font-size: 14px; line-height: 20px; margin-bottom: 16px; }
 .status b { display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 20px; font-weight: 600; }
 .status b i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
 .status ul { margin: 6px 0 0; padding-left: 18px; }
@@ -61,10 +61,10 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
 .status .warn { color: var(--amber); }
 @keyframes pulse { 50% { opacity: .25; } }
 .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin: 0 0 16px; }
-.stat span { display: block; font-size: 13px; line-height: 18px; color: var(--muted); }
+.stat span { display: block; font-size: 14px; line-height: 20px; color: var(--muted); }
 .stat b { font-size: 18px; line-height: 28px; font-variant-numeric: tabular-nums; font-weight: 600; letter-spacing: -0.01em; }
 .save-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
-.zread { font-size: 13px; line-height: 18px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.zread { font-size: 14px; line-height: 20px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
 .zread b { color: var(--ink); font-weight: 600; }
 .subh h2 { font-size: 14px; line-height: 20px; }
 .subh { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; font-size: 14px; font-weight: 600; }
@@ -75,14 +75,14 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
 .jobs li.bad { color: var(--warn); }
 .jobs li .t b { font-weight: 600; }
 .jobs li .t small { color: var(--muted); }
-.jobs li .how { grid-column: 2 / 4; font-size: 13px; line-height: 18px; }
+.jobs li .how { grid-column: 2 / 4; font-size: 14px; line-height: 20px; }
 .jobs li input { margin: 2px 0 0; }
 .jobs li button { height: 32px; width: 32px; padding: 0; }
-.legend { display: flex; gap: 16px; font-size: 13px; color: var(--muted); margin: 0 0 8px; flex-wrap: wrap; }
+.legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin: 0 0 8px; flex-wrap: wrap; }
 .legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
 .legend i.l-a { background: var(--pen); }
 .legend i.l-b { background: var(--part2); }
-.place { margin-top: 12px; border-radius: var(--r-sm); background: var(--tint); padding: 10px 12px; font-size: 13px; line-height: 18px; }
+.place { margin-top: 12px; border-radius: var(--r-sm); background: var(--tint); padding: 10px 12px; font-size: 14px; line-height: 20px; }
 .place.flush { margin: 0 0 16px; }
 .place b.h { display: block; margin-bottom: 4px; font-size: 14px; line-height: 20px; font-weight: 600; }
 .place ol { margin: 0; padding-left: 18px; }
@@ -117,9 +117,9 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
 #cv.simming .item .ink { opacity: .12; }
 #cv .cut { fill: none; stroke: #d2402f; stroke-linecap: round; }
 #cv .travel { fill: none; stroke: #d48a1e; stroke-dasharray: 3 3; opacity: .85; }
-#cv .sel { fill: none; stroke: var(--p-ink); }
-#cv .handle { fill: #fffef9; stroke: var(--p-ink); cursor: nwse-resize; }
-#cv .handle.rot { cursor: grab; fill: var(--p-ink); }
+#cv .sel { fill: none; stroke: var(--pen); }
+#cv .handle { fill: #fffef9; stroke: var(--pen); cursor: nwse-resize; }
+#cv .handle.rot { cursor: grab; fill: var(--pen); }
 #cv .handle.ex { cursor: ew-resize; }
 #cv .handle.ey { cursor: ns-resize; }
 #cv .guide { stroke: #d2402f; stroke-dasharray: 2 2; }
@@ -131,24 +131,26 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
 #cv .reachb { fill: none; stroke: #2a5ea8; stroke-dasharray: 4 3; }
 #cv .passb { fill: none; stroke: var(--part2); stroke-linecap: round; stroke-linejoin: round; }
 #cv .magnet-real { fill: #2f5fb0; stroke: #fffef9; }
-#cv .dimline { stroke: var(--p-ink); fill: none; }
+#cv .dimline { stroke: var(--pen); fill: none; }
 #cv .dimlbl { fill: #ece6d8; font-weight: 600; letter-spacing: .01em; }
 #cv .bedline { fill: none; stroke: #77736a; stroke-dasharray: 3 2; }
 
 /* things floating on the canvas: one look, the ground colour with a hairline */
 .float { background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: var(--r-md); }
-.hud { position: absolute; left: 12px; bottom: 12px; font-size: 13px; color: var(--muted); padding: 4px 10px; font-variant-numeric: tabular-nums; pointer-events: none; border-radius: var(--r-sm); }
+.hud { position: absolute; left: 12px; bottom: 12px; font-size: 12px; color: var(--muted); padding: 4px 10px; font-variant-numeric: tabular-nums; pointer-events: none; border-radius: var(--r-sm); }
 .zoombox { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 2px; padding: 2px; }
-.zoombox button { height: 32px; min-width: 36px; padding: 0 8px; font-size: 13px; background: transparent; }
+.zoombox button { height: 32px; min-width: 36px; padding: 0 8px; font-size: 12px; background: transparent; }
 .zoombox button:hover { background: var(--tint); transform: none; }
 .hint { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); text-align: center; color: var(--muted); pointer-events: none; font-size: 14px; line-height: 20px; }
 .hint b { display: block; color: var(--ink); font-size: 18px; line-height: 28px; font-weight: 600; margin-bottom: 4px; }
 .drop { position: absolute; inset: 12px; border: 2px dashed var(--ink); border-radius: var(--r-lg); background: color-mix(in oklab, var(--bg) 85%, transparent); display: grid; place-items: center; font-weight: 600; font-size: 16px; pointer-events: none; }
 .simbar { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 8px 12px; width: min(680px, calc(100% - 32px)); z-index: var(--z-float); }
-.simbar input[type=range] { flex: 1; }
-.simbar .time { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); min-width: 96px; text-align: center; }
+.simbar input[type=range] { flex: 1; min-width: 96px; }
+.simbar .seg { flex: none; }
+
+.simbar .time { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); min-width: 96px; text-align: center; }
 .sheets { position: absolute; left: 12px; top: 12px; display: flex; gap: 4px; z-index: var(--z-float); flex-wrap: wrap; max-width: calc(100% - 24px); }
-.sheets button { height: 32px; padding: 0 12px; font-size: 13px; background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.sheets button { height: 32px; padding: 0 12px; font-size: 12px; background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow); }
 .sheets button:hover { background: color-mix(in oklab, var(--bg) 86%, var(--ink)); }
 .sheets button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .sheets button .x { margin-left: 2px; opacity: .7; padding: 0 2px; }
@@ -164,32 +166,54 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
 #lib-q { width: 220px; }
 .libgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); gap: 12px; }
 .libgrid button { flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 8px; gap: 8px; height: auto; white-space: normal; text-align: left; border-radius: var(--r-md); }
-.libgrid .th { height: 116px; border-radius: var(--r-sm); background: #fffef9 center/contain no-repeat; display: grid; place-items: center; color: #6d6455; font-size: 13px; }
-.libgrid .t { font-size: 13px; line-height: 18px; font-weight: 500; }
-.libgrid .w { font-size: 13px; line-height: 18px; color: var(--muted); font-weight: 400; }
+.libgrid .th { height: 116px; border-radius: var(--r-sm); background: #fffef9 center/contain no-repeat; display: grid; place-items: center; color: #6d6455; font-size: 12px; }
+.libgrid .t { font-size: 14px; line-height: 20px; font-weight: 500; }
+.libgrid .w { font-size: 14px; line-height: 20px; color: var(--muted); font-weight: 400; }
 #cal { width: 600px; }
 .calstep { padding: 16px 0; border-top: 1px solid var(--line); }
-.calstep h4 { margin: 0 0 8px; font-size: 15px; line-height: 22px; display: flex; gap: 10px; align-items: center; }
-.calstep h4 i { font-style: normal; width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 600; }
+.calstep h4 { margin: 0 0 8px; font-size: 16px; line-height: 24px; display: flex; gap: 10px; align-items: center; }
+.calstep h4 i { font-style: normal; width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 600; }
 .calstep p { margin: 0 0 12px; font-size: 14px; line-height: 21px; max-width: 62ch; }
 .calres { font-size: 14px; margin-top: 8px; }
 #pagedlg { width: 540px; }
 #pagedlg .place, #pagedlg .note { margin: 0 0 12px; }
 #hwdlg { width: 520px; }
+#plotdlg { width: 580px; }
+#prndlg { width: 560px; }
+#prn { width: 100%; }
+.prn-own { gap: 6px; }
+#prndlg textarea { width: 100%; min-height: 64px; font: 13px/1.5 ui-monospace, monospace; }
+#prndlg .grid2 + .grid2 { margin-top: 8px; }
+.pd-h { font-size: 16px; line-height: 24px; margin: 20px 0 8px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pd-h:first-child { margin-top: 0; }
+.pd-h .row { gap: 4px; }
+.pd-jobs li { cursor: pointer; }
+.pd-jobs li.off .t { opacity: .5; }
+.pd-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.howto { list-style: none; margin: 0; padding: 0; counter-reset: st; }
+.howto > li { display: grid; grid-template-columns: 24px 1fr; gap: 4px 12px; padding: 12px 0; border-top: 1px solid var(--line); font-size: 14px; line-height: 21px; counter-increment: st; }
+.howto > li::before { content: counter(st); width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 600; }
+.howto > li.done::before { content: "✓"; background: var(--ok); }
+.howto > li.done .what { opacity: .55; }
+.howto h5 { margin: 0 0 2px; font-size: 14px; line-height: 21px; font-weight: 600; }
+.howto p { margin: 0; }
+.howto code { font: 600 13px/1 var(--mono, ui-monospace, monospace); background: var(--tint); padding: 2px 6px; border-radius: 4px; }
+.howto .tick { display: inline-flex; gap: 8px; align-items: center; margin-top: 8px; font-size: 12px; color: var(--muted); cursor: pointer; }
+.howto .row { margin-top: 8px; }
 .hwtext { width: 100%; min-height: 120px; resize: vertical; }
 .stylepick { display: grid; gap: 6px; margin-top: 12px; }
 .stylepick select { width: 100%; }
-.busy-note { font-size: 13px; color: var(--muted); }
+.busy-note { font-size: 12px; color: var(--muted); }
 .tabs button.alert::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); margin-left: 2px; }
 #ask { width: 420px; }
-#ask p { margin: 0 0 20px; font-size: 15px; line-height: 22px; color: var(--muted); white-space: pre-line; max-height: 50vh; overflow-y: auto; }
+#ask p { margin: 0 0 20px; font-size: 16px; line-height: 24px; color: var(--muted); white-space: pre-line; max-height: 50vh; overflow-y: auto; }
 @media (max-width: 1180px) { body { grid-template-columns: 280px 1fr 312px; } .toggle { padding: 0 8px; } }
 </style>
 </head>
 <body>
 <a class="skip" href="#stage">Skip to the sheet</a>
 <header class="appbar">
-  <a class="brand" href="/" aria-label="InkPrint, back to Write"><svg id="logo" viewBox="0 0 10 10" role="img" aria-label="InkPrint"></svg></a>
+  <a class="brand" href="/" aria-label="InkPlot, back to Write"><svg id="logo" viewBox="0 0 10 10" role="img" aria-label="InkPlot"></svg></a>
   <nav class="pages" aria-label="Pages"><a href="/">Write</a><a href="/plotter" aria-current="page">Plotter</a><a href="/fonts">Fonts</a></nav>
   <div class="appbar__tools">
     <button class="ghost icon" id="undo" title="Undo (⌘Z)" aria-label="Undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
@@ -274,7 +298,7 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
     <g id="g-sim"></g>
     <g id="g-sel"></g>
   </svg>
-  <div class="hint" id="hint" hidden><b>Nothing on the sheet yet</b>Add a drawing, some handwriting or a label from the left,<br>or drop an SVG file here.</div>
+  <div class="hint" id="hint" hidden><b>Nothing on the sheet yet</b>Add something from the list on the left,<br>or drop an SVG file here.</div>
   <div class="drop" id="drop" hidden>Drop SVG files to add them</div>
   <div class="hud float" id="hud">–</div>
   <div class="zoombox float">
@@ -285,7 +309,7 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
   </div>
   <div class="simbar float" id="simbar" hidden>
     <button class="icon" id="s-play" title="Play or pause (space)" aria-label="Play or pause"></button>
-    <input type="range" id="s-pos" min="0" max="1000" value="0" step="1">
+    <input type="range" id="s-pos" min="0" max="1000" value="0" step="1" aria-label="Where the preview is" style="--p:0%">
     <span class="time" id="s-time">0:00 / 0:00</span>
     <div class="seg" id="s-speed"><button data-v="1">1×</button><button data-v="10" class="on">10×</button><button data-v="50">50×</button><button data-v="250">250×</button></div>
     <button class="ghost icon" id="s-close" title="Close preview (Esc)" aria-label="Close preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
@@ -311,23 +335,10 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
         </div>
       </section>
       <section class="sec">
-        <div class="subh"><h2>Print jobs</h2><span class="seg" id="kind" role="group" aria-label="File type"><button data-v="plot" class="on" title="The real plot">Plot</button><button data-v="rehearsal" title="The same moves with the pen 10 mm higher, to watch first">Pen up</button><button data-v="outline" title="Pen up, slowly goes round the drawing">Outline</button></span></div>
+        <div class="subh"><h2>Print jobs</h2></div>
         <div class="legend" id="legend" hidden><span><i class="l-a"></i>Part 1</span><span><i class="l-b"></i>Part 2, sheet turned round</span></div>
         <ul class="jobs" id="jobs"></ul>
-        <details class="steps">
-          <summary>How printing works</summary>
-          <ol>
-            <li><b>Home</b> from the printer screen with the holder <b>off</b>, then clip it on.</li>
-            <li>Print the jobs in order, ticking each one off. The highlighted job says what to do with the paper first.</li>
-            <li><b>Part 2</b> of a sheet is printed with the same sheet <b>turned round</b> (top edge at the front), so the pen can reach the bottom of the page.</li>
-            <li>New drawing? Save the <b>Pen up</b> version too and watch it first.</li>
-            <li>When you're done, take the holder <b>off</b> before homing again.</li>
-          </ol>
-        </details>
-      </section>
-      <section class="sec">
-        <div class="f"><label for="name">File name</label><div class="unit"><input type="text" id="name" spellcheck="false"><em>.gcode</em></div></div>
-        <div class="f mt"><label for="dest">Save to</label><div class="row dest-row"><select id="dest"></select><button id="clean" hidden title="Remove the hidden files macOS puts on the card">Clean card</button><button id="eject" hidden title="Eject the card so you can take it out safely">Eject</button></div></div>
+        <button class="small mt" id="howto-open">How to plot, step by step</button>
       </section>
     </div>
 
@@ -338,10 +349,10 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
           <label for="pp-w">Width<small>measure your sheet</small></label><div class="unit"><input type="number" id="pp-w" step="0.5"><em>mm</em></div>
           <label for="pp-h">Length</label><div class="unit"><input type="number" id="pp-h" step="0.5"><em>mm</em></div>
         </div>
-        <label class="switch mt"><input type="checkbox" id="two-pass"><span class="knob"></span><span>Turn the sheet round to reach the bottom<small>Writes the bottom of the page as part 2</small></span></label>
+        <label class="switch mt"><input type="checkbox" id="two-pass"><span class="knob"></span><span>Turn the sheet round to reach the bottom<small>The bottom of the page is plotted as part 2</small></span></label>
       </section>
       <section class="sec">
-        <label class="switch"><input type="checkbox" id="ln-on"><span class="knob"></span><span><b>Write on lined paper</b><small>Measure your paper's lines and it works out where to put the sheet.</small></span></label>
+        <label class="switch"><input type="checkbox" id="ln-on"><span class="knob"></span><span><b>Write on lined paper</b><small>Enter your paper's line spacing and the writing lines up with it.</small></span></label>
         <div id="ln-box">
           <div class="fields mt">
             <label for="ln-first">First line<small>mm below the top edge</small></label><div class="unit"><input type="number" id="ln-first" step="0.5"><em>mm</em></div>
@@ -356,6 +367,12 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
     </div>
 
     <div class="tabpanel" data-tab="machine" role="tabpanel" hidden>
+      <section class="sec">
+        <div class="sec__head"><h2>Printer</h2><button class="small" id="prn-new">New profile…</button></div>
+        <select id="prn" aria-label="Printer"></select>
+        <div class="note info" id="prn-note"></div>
+        <div class="row prn-own mt" id="prn-own" hidden><button class="small" id="prn-edit">Edit</button><button class="small" id="prn-del">Delete</button></div>
+      </section>
       <section class="sec">
         <div class="sec__head"><h2>Calibration</h2><button class="small" id="cal-open">Calibrate…</button></div>
         <div id="calstate" class="small"></div>
@@ -391,8 +408,8 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
   </div>
   <div class="right__foot">
     <button class="primary lg wide" id="save" title="⌘S">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg>
-      <span id="save-label">Save plot file</span></button>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2M7 14h10v7H7z"/></svg>
+      <span id="save-label">Plot…</span></button>
   </div>
 </aside>
 
@@ -404,19 +421,19 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
 <dialog id="cal">
   <div class="dh"><h2>Calibrate the pen</h2><button class="ghost icon" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
   <div class="db">
-    <p class="lead">The pen sits beside the nozzle, so the printer has to know how far away. Do this once, and again whenever you re-clip the holder or move the pen in it. Files go to the folder chosen under <b>Save to</b>.</p>
+    <p class="lead">Do this once, and again whenever you move the pen or re-clip the holder. Files are saved where the Plot window's <b>Save to</b> points.</p>
     <div class="calstep">
       <h4><i>1</i>Pen</h4>
       <div class="fields">
         <label for="c-pen">How far the pen tip sticks out below the nozzle tip</label><div class="unit"><input type="number" id="c-pen" step="0.5"><em>mm</em></div>
         <label for="c-surface">Pad under the paper</label><div class="unit"><input type="number" id="c-surface" step="0.5"><em>mm</em></div>
       </div>
-      <p>To set the pen to that length: home with the holder off, clip it on with the pen pulled up, and print the pen-height file. The paper comes up to exactly that far below the nozzle and waits 4 minutes while you slide the pen down until it just touches, then tighten it.</p>
+      <p>Home with the holder off. Clip it on with the pen pulled up, then print the pen-height file. The bed rises and waits 4 minutes: slide the pen down until it touches the paper, then tighten it.</p>
       <button id="c-penset">Save pen-height file</button>
     </div>
     <div class="calstep">
       <h4><i>2</i>Draw a calibration cross</h4>
-      <p>Home with the holder off, clip it on, put a sheet in the back-left corner with the magnets. The nozzle goes to X128 Y180 and the pen draws a cross wherever it really is. Not sure it will clear? Print the pen-up version first.</p>
+      <p>Home with the holder off, clip it on, and put a sheet in the back-left corner with the magnets. The nozzle goes to <span id="c-calxy">X128 Y180</span> and the pen draws a cross. Unsure it will clear? Print the pen-up version first.</p>
       <div class="row wrap"><button id="c-cross">Save calibration cross</button><button id="c-air">Pen-up version (+15 mm)</button></div>
     </div>
     <div class="calstep">
@@ -430,7 +447,7 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
     </div>
     <div class="calstep">
       <h4><i>4</i>Print the check cross</h4>
-      <p>It should land exactly where it says. Also print it after moving the pen in the holder, to check the offset hasn't changed. If it's more than about 1 mm out, measure where it landed:</p>
+      <p>It should land where the file says. If it's more than 1 mm out, enter where it landed:</p>
       <button id="c-check">Save check cross</button><div class="mt"></div>
       <div class="grid2">
         <div class="f"><label>Landed from left edge</label><div class="unit"><input type="number" id="c-la" step="0.5"><em>mm</em></div></div>
@@ -462,7 +479,7 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
 <dialog id="pagedlg">
   <div class="dh"><h2>Write a page</h2><button class="ghost icon" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
   <div class="db">
-    <p class="lead">Puts text onto your paper's ruled lines, sheet after sheet. The pen can't reach the top or bottom of a sheet in one go, so lines near the bottom are written after you turn the sheet round. Ruled lines it can't reach at all are left empty.</p>
+    <p class="lead">Writes your text on the ruled lines, over as many sheets as it needs. Lines near the bottom are written after you turn the sheet round.</p>
     <div class="f"><label for="pg-text">Text</label><textarea id="pg-text" class="hwtext" spellcheck="true"></textarea></div>
     <div class="stylepick"><label for="pg-style">Handwriting style</label><select id="pg-style"></select></div>
     <div class="stylepick"><label for="pg-where">Where</label><select id="pg-where">
@@ -472,8 +489,73 @@ main { grid-area: main; position: relative; min-width: 0; min-height: 0; backgro
     </select></div>
     <div class="mt"></div>
     <div class="place" id="pg-place"></div>
-    <p class="help mt">These come from <b>Write on lined paper</b> in the Paper card; change them there.</p>
+    <p class="help mt">These come from <b>Write on lined paper</b> in the Paper tab; change them there.</p>
     <div class="row mt"><button class="primary" id="pg-go">Lay it out</button><span class="muted" id="pg-res"></span></div>
+  </div>
+</dialog>
+
+<dialog id="plotdlg" aria-labelledby="pd-title">
+  <div class="dh"><h2 id="pd-title">Plot</h2><button class="ghost icon" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div class="db">
+    <div id="pd-pick">
+      <h3 class="pd-h">1. Which pages?<span class="row"><button class="small ghost" id="pd-all">All</button><button class="small ghost" id="pd-none">None</button></span></h3>
+      <ul class="jobs pd-jobs" id="pd-jobs"></ul>
+      <h3 class="pd-h">2. Pen</h3>
+      <span class="seg" id="kind" role="group" aria-label="What the pen does"><button data-v="plot" class="on">Draw</button><button data-v="rehearsal">Pen up (rehearsal)</button><button data-v="outline">Outline only</button></span>
+      <p class="help mt" id="pd-kindhelp"></p>
+      <h3 class="pd-h">3. Save to</h3>
+      <div class="row dest-row"><select id="dest" aria-label="Save to"></select><button id="clean" hidden title="Remove the hidden files macOS puts on the card">Clean card</button><button id="eject" hidden title="Eject the card so you can take it out safely">Eject</button></div>
+      <p class="help mt" id="pd-desthelp"></p>
+      <div class="f mt"><label for="name">File name</label><div class="unit"><input type="text" id="name" spellcheck="false"><em>.gcode</em></div></div>
+      <div class="pd-foot"><span class="muted" id="pd-sum"></span><button class="primary" id="pd-go">Save</button></div>
+    </div>
+    <div id="pd-how" hidden>
+      <p class="lead" id="pd-saved"></p>
+      <div class="note" id="pd-old" hidden></div>
+      <ol class="howto" id="pd-steps"></ol>
+      <div class="pd-foot"><button id="pd-back">Plot other pages</button><button class="primary" data-close>Done</button></div>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="prndlg" aria-labelledby="prd-title">
+  <div class="dh"><h2 id="prd-title">Printer profile</h2><button class="ghost icon" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <div class="db">
+    <p class="lead">The sheet always goes in the back-left corner of the bed.</p>
+    <div class="grid2">
+      <div class="f"><label for="pr-name">Name</label><input type="text" id="pr-name" maxlength="50"></div>
+      <div class="f"><label for="pr-maker">Make</label><select id="pr-maker"><option value="bambu">Bambu Lab</option><option value="other">Any other printer</option></select></div>
+    </div>
+    <h3 class="pd-h">Bed size</h3>
+    <div class="grid2">
+      <div class="f"><label for="pr-bw">Width (left to right)</label><div class="unit"><input type="number" id="pr-bw" step="1"><em>mm</em></div></div>
+      <div class="f"><label for="pr-bd">Depth (front to back)</label><div class="unit"><input type="number" id="pr-bd" step="1"><em>mm</em></div></div>
+    </div>
+    <h3 class="pd-h">Where the nozzle can safely go</h3>
+    <p class="help">The holder hits the frame before the nozzle reaches the edges. To measure: home with the holder <b>off</b>, clip it on, then move the head slowly left, then forward, until the holder is 5 mm from touching. Enter the position the printer's screen shows.</p>
+    <div class="grid2">
+      <div class="f"><label for="pr-x0">Left limit (smallest X)</label><div class="unit"><input type="number" id="pr-x0" step="0.5"><em>mm</em></div></div>
+      <div class="f"><label for="pr-x1">Right limit (largest X)</label><div class="unit"><input type="number" id="pr-x1" step="0.5"><em>mm</em></div></div>
+    </div>
+    <div class="grid2">
+      <div class="f"><label for="pr-y0">Front limit (smallest Y)</label><div class="unit"><input type="number" id="pr-y0" step="0.5"><em>mm</em></div></div>
+      <div class="f"><label for="pr-y1">Back limit (largest Y)</label><div class="unit"><input type="number" id="pr-y1" step="0.5"><em>mm</em></div></div>
+    </div>
+    <label class="switch mt"><input type="checkbox" id="pr-measured"><span class="knob"></span><span>I measured these on my printer<small>Leave off if you guessed. You'll be reminded to do a pen-up run first.</small></span></label>
+    <h3 class="pd-h">Calibration cross</h3>
+    <div class="grid2">
+      <div class="f"><label for="pr-cx">Nozzle X</label><div class="unit"><input type="number" id="pr-cx" step="1"><em>mm</em></div></div>
+      <div class="f"><label for="pr-cy">Nozzle Y</label><div class="unit"><input type="number" id="pr-cy" step="1"><em>mm</em></div></div>
+    </div>
+    <p class="help mt">Somewhere in the middle of the safe area, over the paper.</p>
+    <details class="mt">
+      <summary>Extra G-code (optional)</summary>
+      <p class="help" id="pr-bambu-help"></p>
+      <div class="f mt"><label for="pr-start">At the start of every file</label><textarea id="pr-start" spellcheck="false" placeholder="M117 Plotting…"></textarea></div>
+      <div class="f mt"><label for="pr-end">At the end of every file</label><textarea id="pr-end" spellcheck="false"></textarea></div>
+      <p class="help">Set-up commands only. Moves, homing, levelling and heating are refused.</p>
+    </details>
+    <div class="pd-foot"><span class="c-warn" id="pr-err" role="alert"></span><button class="primary" id="pr-save">Save and use it</button></div>
   </div>
 </dialog>
 
@@ -666,11 +748,12 @@ function toMM(e) { const r = cv.getBoundingClientRect(); return { x: view.x + (e
 function drawStage() {
   const g = $('g-stage'); g.innerHTML = '';
   const W = S.paper.w, H = S.paper.h, two = !!(M && M.two_pass && M.reach_b);
-  const d0 = S.shift.a || 0, front = 256 - d0;
+  const BW = (M && M.bed_w) || 256, BD = (M && M.bed_d) || 256;      // the bed, from the printer profile
+  const d0 = S.shift.a || 0, front = BD - d0;
   const vb = two && S.viewPart === 'b', dv = vb ? (S.shift.b || 0) : d0;
   // the bed, as it lies under the sheet for the part being shown (part 2: the sheet is turned round on it)
-  if (vb) el('rect', { x: W - 256 - 14, y: H + dv - 256 - 14, width: 284, height: 284, rx: 6, class: 'bed' }, g);
-  else el('rect', { x: -14, y: -14 - d0, width: 284, height: 284, rx: 6, class: 'bed' }, g);
+  if (vb) el('rect', { x: W - BW - 14, y: H + dv - BD - 14, width: BW + 28, height: BD + 28, rx: 6, class: 'bed' }, g);
+  else el('rect', { x: -14, y: -14 - d0, width: BW + 28, height: BD + 28, rx: 6, class: 'bed' }, g);
   el('rect', { x: 0, y: 0, width: W, height: H, class: 'paper' }, g);
   if (!two) {
     el('rect', { x: 0, y: front, width: W, height: H - front, class: 'offbed' }, g);
@@ -709,7 +792,8 @@ function drawPlacement(g, W, H, vb, d) {
   // the magnets where they really go, and how far the sheet sits from the back of the bed
   const D = M.magnet_diameter || 10, s = M.magnet_size || 20, k = mmPerPx();
   const backY = d >= D / 2 ? 0 : d > 0 ? D / 2 - d : D / 2;      // centre of a back magnet, from the sheet's back edge
-  const frontY = 256 - d - D / 2 - 1;                             // centre of a front magnet, on the bed's front edge
+  const BW = M.bed_w || 256, BD = M.bed_d || 256;
+  const frontY = BD - d - D / 2 - 1;                             // centre of a front magnet, on the bed's front edge
   const pts = [[s / 2, backY], [W - s / 2, backY], [s / 2, frontY], [W - s / 2, frontY]];
   for (const [x, y] of pts) {
     const [px, py] = vb ? [W - x, H - y] : [x, y];
@@ -718,7 +802,7 @@ function drawPlacement(g, W, H, vb, d) {
   const fs = Math.max(3, 11 * k);
   const backEdge = vb ? H : 0, bedBack = vb ? H + d : -d, sideX = vb ? W : 0;
   // back edge of the bed, and the gap to the sheet
-  el('line', { x1: vb ? W - 256 : 0, x2: vb ? W : 256, y1: bedBack, y2: bedBack, class: 'bedline', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.5 }, g);
+  el('line', { x1: vb ? W - BW : 0, x2: vb ? W : BW, y1: bedBack, y2: bedBack, class: 'bedline', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.5 }, g);
   const tx = W / 2;
   if (d > 0) {
     el('path', { d: `M${tx} ${bedBack}V${backEdge}M${tx - 3} ${bedBack}H${tx + 3}M${tx - 3} ${backEdge}H${tx + 3}`, class: 'dimline', 'vector-effect': 'non-scaling-stroke', 'stroke-width': 2 }, g);
@@ -1244,10 +1328,87 @@ function paintMachine() {
   const hn = $('headnote');
   if (M.head_low) { hn.hidden = false; hn.textContent = `While drawing, the nozzle is only ${(M.z_draw - M.surface).toFixed(1)} mm above the paper, lower than the ${M.magnet_height} mm magnets plus clearance, so the grey dashed areas near the magnets are off limits. Push the pen out to at least ${M.pen_for_free_corners} mm to free them.`; }
   else hn.hidden = true;
+  if (M.cal_nozzle) $('c-calxy').textContent = `X${Math.round(M.cal_nozzle[0])} Y${Math.round(M.cal_nozzle[1])}`;
+  paintPrinter();
   $('calstate').innerHTML = M.has_offset
     ? `<span class="c-ok">●</span> Offset <b>X ${M.offset_x.toFixed(1)}</b>, <b>Y ${M.offset_y.toFixed(1)}</b> mm<br><small>The pen sits ${Math.abs(M.offset_x).toFixed(1)} mm ${M.offset_x < 0 ? 'left of' : 'right of'} and ${Math.abs(M.offset_y).toFixed(1)} mm ${M.offset_y < 0 ? 'in front of' : 'behind'} the nozzle.</small>`
     : '<span class="c-warn">●</span> Not calibrated yet. Press Calibrate.';
 }
+/* ---------- printer profiles ---------- */
+let printers = null, prnEditing = null;
+async function loadPrinters() {
+  try { printers = await api('/plot/printers'); paintPrinter(); } catch (e) {}
+}
+function paintPrinter() {
+  if (!printers || !M) return;
+  const sel = $('prn'), cur = M.printer ? M.printer.id : printers.current;
+  const sig = JSON.stringify(printers.profiles.map(p => [p.id, p.name]));
+  if (sel.dataset.sig !== sig) {
+    sel.dataset.sig = sig; sel.innerHTML = '';
+    for (const [label, list] of [['Built in', printers.profiles.filter(p => p.builtin)], ['Your profiles', printers.profiles.filter(p => !p.builtin)]]) {
+      if (!list.length) continue;
+      const g = document.createElement('optgroup'); g.label = label;
+      for (const p of list) g.appendChild(new Option(p.name + (p.measured ? '' : ' (not measured)'), p.id));
+      sel.appendChild(g);
+    }
+  }
+  sel.value = cur;
+  const p = printers.profiles.find(q => q.id === cur) || {};
+  $('prn-note').innerHTML = esc(p.note || (p.measured ? 'Your own profile, measured on your printer.' : 'Your own profile.')) +
+    (p.measured ? '' : '<br><b>Not measured.</b> Do a pen-up run before plotting.') +
+    `<br><small>Bed ${p.bed ? p.bed[0] + ' × ' + p.bed[1] : '?'} mm · nozzle X ${p.safe_x ? p.safe_x.join('–') : '?'}, Y ${p.safe_y ? p.safe_y.join('–') : '?'}${p.maker === 'bambu' ? ' · spaghetti detection off' : ''}</small>`;
+  $('prn-own').hidden = !!p.builtin;
+}
+async function printerAction(body) {
+  const r = await api('/plot/printers', Object.assign({ settings: S.settings }, body));
+  printers = { current: r.current, profiles: r.profiles }; M = r.machine;
+  paintMachine(); drawStage(); schedulePlan(); refreshPlacement(); refreshJobs();
+  return r;
+}
+$('prn').onchange = async e => {
+  try {
+    await printerAction({ action: 'use', id: e.target.value });
+    const p = printers.profiles.find(q => q.id === e.target.value);
+    toast('Printer: ' + p.name, M.problems.length ? M.problems[0] : 'New files are made for this printer.', M.problems.length ? 'error' : 'good');
+  } catch (err) { toast('Couldn\'t switch printer', err.message, 'error'); paintPrinter(); }
+};
+function openPrinterDlg(p, isNew) {
+  prnEditing = isNew ? null : p.id;
+  $('prd-title').textContent = isNew ? 'New printer profile' : 'Edit ' + p.name;
+  $('pr-name').value = isNew ? (p.builtin ? (p.maker === 'bambu' ? 'My ' + p.name.replace(/\s*\(.*\)$/, '') : 'My printer') : p.name + ' copy') : p.name;
+  $('pr-maker').value = p.maker;
+  [['pr-bw', p.bed[0]], ['pr-bd', p.bed[1]], ['pr-x0', p.safe_x[0]], ['pr-x1', p.safe_x[1]], ['pr-y0', p.safe_y[0]], ['pr-y1', p.safe_y[1]],
+   ['pr-cx', p.cal[0]], ['pr-cy', p.cal[1]]].forEach(([id, v]) => $(id).value = v);
+  $('pr-measured').checked = isNew ? false : !!p.measured;
+  $('pr-start').value = (p.start || []).join('\n'); $('pr-end').value = (p.end || []).join('\n');
+  $('pr-err').textContent = ''; paintMakerHelp();
+  $('prndlg').showModal(); $('pr-name').focus();
+}
+function paintMakerHelp() {
+  $('pr-bambu-help').textContent = $('pr-maker').value === 'bambu'
+    ? 'Bambu files already start with M981 S0 P20000, which turns off spaghetti detection.'
+    : 'Bambu-only commands (like M981) are refused for other printers.';
+}
+$('pr-maker').onchange = paintMakerHelp;
+$('prn-new').onclick = () => { const p = printers && printers.profiles.find(q => q.id === $('prn').value); if (p) openPrinterDlg(p, true); };
+$('prn-edit').onclick = () => { const p = printers.profiles.find(q => q.id === $('prn').value); if (p && !p.builtin) openPrinterDlg(p, false); };
+$('prn-del').onclick = async () => {
+  const p = printers.profiles.find(q => q.id === $('prn').value);
+  if (!p || p.builtin || !await ask('Delete “' + p.name + '”?', 'InkPlot switches back to the Bambu Lab X1E. Saved files are not affected.', 'Delete profile')) return;
+  try { await printerAction({ action: 'delete', id: p.id }); toast('Profile deleted', '', 'good'); } catch (e) { toast('Not deleted', e.message, 'error'); }
+};
+$('pr-save').onclick = async () => {
+  const num = id => $(id).value === '' ? null : +$(id).value;
+  const prof = { id: prnEditing || '', name: $('pr-name').value, maker: $('pr-maker').value,
+    bed: [num('pr-bw'), num('pr-bd')], safe_x: [num('pr-x0'), num('pr-x1')], safe_y: [num('pr-y0'), num('pr-y1')],
+    cal: [num('pr-cx'), num('pr-cy')], measured: $('pr-measured').checked, start: $('pr-start').value, end: $('pr-end').value };
+  try {
+    await printerAction({ action: 'save', profile: prof, use: true });
+    $('prndlg').close();
+    toast('Printer profile saved', M.problems.length ? M.problems[0] : 'In use now. New files are made for it.', M.problems.length ? 'error' : 'good');
+  } catch (e) { $('pr-err').textContent = e.message; }
+};
+
 async function setMachine(set) {
   try { M = await api('/plot/machine', { set, settings: S.settings }); paintMachine(); drawStage(); schedulePlan(); refreshPlacement(); }
   catch (e) { toast('Not saved', e.message, 'error'); paintMachine(); }
@@ -1316,7 +1477,7 @@ async function runCheck(id) {
     setButtons(); refreshJobs();
   } catch (e) { if (id === planSeq) setStatus('bad', 'The check failed to run', [e.message]); }
 }
-function setButtons() { $('save').disabled = !jobsReady(); }
+function setButtons() { $('save').disabled = !jobRows().some(x => !x.bad); }
 
 /* ---------- saving ---------- */
 async function refreshVolumes() {
@@ -1332,7 +1493,7 @@ async function refreshVolumes() {
     const fresh = vols.find(v => v.printer && !had.has(v.name) && had.size);
     if (fresh) { S.dest = fresh.name; toast('Printer SD card found', `“${fresh.name}” is connected, so plots will be saved straight to it.`, 'good'); persist(); }
     sel.value = opts.some(o => o[0] === S.dest) ? S.dest : 'plots';
-    paintClean();
+    paintClean(); if ($('plotdlg').open) paintPick();
   } catch (e) {}
 }
 function paintClean() { $('clean').hidden = $('eject').hidden = ['plots', 'downloads'].includes($('dest').value); }
@@ -1344,7 +1505,7 @@ $('eject').onclick = async () => {
     refreshVolumes();
   } catch (e) { toast('Couldn\'t eject the card', e.message, 'error'); }
 };
-$('dest').onchange = e => { S.dest = e.target.value; persist(); paintClean(); };
+$('dest').onchange = e => { S.dest = e.target.value; persist(); paintClean(); paintPick(); };
 $('clean').onclick = async () => {
   const dest = $('dest').value;
   try {
@@ -1411,14 +1572,7 @@ function renderJobs() {
     if (isNext) next = true;
     li.className = (done ? 'done ' : '') + (isNext ? 'next' : '');
     const file = safeName(S.name) + suffixFor(n, x.k, x.part) + KIND_EXT[S.kind];
-    const sa = S.shift.a || 0, sb = S.shift.b || 0;
-    const how = x.part === 'b'
-      ? 'Leave the pen alone. Take the sheet out and turn it round so its top edge is at the front. ' + (sb > 0
-        ? `Put its left edge against the left side of the bed with the bottom edge ${sb} mm in front of the back edge of the bed (measure at both ends). Magnets back on.`
-        : 'Push it back into the back-left corner and put the magnets back on.')
-      : (first ? 'Home with the holder off, then clip it on. ' : '') + (sa > 0
-        ? `Put ${first ? 'a' : 'a new'} sheet with its left edge against the left side of the bed and its top edge ${sa} mm in front of the back edge of the bed (measure at both ends). Magnets on the corners.`
-        : `Put ${first ? 'a' : 'a new'} sheet in the back-left corner, top edge at the back, magnets on the corners.`);
+    const how = (first && x.part === 'a' ? 'Home with the holder off, then clip it on. ' : '') + paperHow(x.part, first);
     li.innerHTML = `<input type="checkbox" ${done ? 'checked' : ''} title="Tick it when it's printed"><span class="t"><b>Sheet ${x.k + 1}, ${x.part === 'a' ? 'part 1' : 'part 2 (turned round)'}</b><br><small class="muted">${esc(file)} · ≈ ${fmtTime(x.p.seconds)}</small></span><button title="Save just this file">${DL}</button>` +
       (isNext ? `<span class="how">${esc(how)}</span>` : '');
     li.querySelector('input').onchange = e => { S.done[key] = e.target.checked; persist(); renderJobs(); };
@@ -1428,8 +1582,17 @@ function renderJobs() {
   }
   if (n && !next) ul.insertAdjacentHTML('beforeend', '<li class="next"><span>✓</span><span class="t"><b>All printed.</b> Take the holder off before homing the printer.</span><span></span></li>');
   if (!rows.length) ul.innerHTML = '<li><span></span><span class="t muted">Nothing to plot yet.</span><span></span></li>';
-  $('save-label').textContent = n > 1 ? `Save all ${n} files` : S.kind === 'plot' ? 'Save plot file' : 'Save ' + KIND_NAME[S.kind].toLowerCase();
   setButtons();
+}
+/* what to do with the paper before a job */
+function paperHow(part, first) {
+  const sa = S.shift.a || 0, sb = S.shift.b || 0;
+  if (part === 'b') return 'Leave the pen alone. Turn the sheet round so its top edge is at the front. ' + (sb > 0
+    ? `Put its left edge against the left side of the bed with the bottom edge ${sb} mm in front of the back edge of the bed (measure at both ends). Magnets back on.`
+    : 'Push it into the back-left corner and put the magnets back.');
+  return sa > 0
+    ? `Put ${first ? 'a' : 'a new'} sheet with its left edge against the left side of the bed and its top edge ${sa} mm in front of the back edge of the bed (measure at both ends). Magnets on the corners.`
+    : `Put ${first ? 'a' : 'a new'} sheet in the back-left corner, top edge at the back, magnets on the corners.`;
 }
 function savedToast(title, files) {
   const onCard = !['plots', 'downloads'].includes($('dest').value);
@@ -1444,19 +1607,135 @@ async function saveJob(k, part, n) {
     savedToast(KIND_NAME[S.kind] + ' saved', [r]);
   } catch (e) { toast('Not saved', e.message, 'error'); }
 }
-async function saveAll() {
-  if (!jobsReady()) return;
-  $('save').disabled = true;
-  try {
-    const r = await api('/plot/export_all', { all: { sheets: S.sheets.map(sh => ({ items: cleanItems(sh.items) })), settings: S.settings, name: S.name, paper: S.paper, two_pass: S.two_pass, shift: S.shift }, kind: S.kind, dest: $('dest').value });
-    if (S.kind === 'plot') { S.done = {}; persist(); renderJobs(); }
-    savedToast(r.files.length > 1 ? `${r.files.length} files saved` : KIND_NAME[S.kind] + ' saved', r.files);
-  } catch (e) { toast('Not saved', e.message, 'error'); }
-  setButtons();
+$('kind').onclick = e => { const v = e.target.dataset.v; if (!v) return; S.kind = v; for (const b of $('kind').children) b.classList.toggle('on', b.dataset.v === v); persist(); renderJobs(); paintPick(); };
+$('name').oninput = e => { S.name = e.target.value; persist(); renderJobs(); paintPick(); };
+
+/* ---------- the Plot window: pick pages, save, then step-by-step instructions ---------- */
+const KIND_HELP = {
+  plot: 'The pen writes on the paper.',
+  rehearsal: 'Same moves with the pen 10 mm up. Use it to check a new layout clears the magnets and the frame.',
+  outline: 'Pen up. Traces the edge of the drawing so you can see where it lands.'
+};
+let pick = new Set(), lastSaved = null;
+const jobKey = x => x.k + x.part;
+function openPlot() {
+  const good = jobRows().filter(x => !x.bad);
+  if (!good.length) { toast('Nothing to plot yet', 'Add something to a sheet first.', 'error'); return; }
+  pick = new Set(good.filter(x => !S.done[jobKey(x)]).map(jobKey));
+  if (!pick.size) pick = new Set(good.map(jobKey));
+  for (const b of $('kind').children) b.classList.toggle('on', b.dataset.v === S.kind);
+  refreshVolumes();
+  showPick(); $('plotdlg').showModal();
 }
-$('save').onclick = saveAll;
-$('kind').onclick = e => { const v = e.target.dataset.v; if (!v) return; S.kind = v; for (const b of $('kind').children) b.classList.toggle('on', b.dataset.v === v); persist(); renderJobs(); };
-$('name').oninput = e => { S.name = e.target.value; persist(); renderJobs(); };
+function showPick() { $('pd-pick').hidden = false; $('pd-how').hidden = true; $('pd-title').textContent = 'Plot'; paintPick(); }
+function paintPick() {
+  const ul = $('pd-jobs'); ul.innerHTML = '';
+  const rows = jobRows(), n = rows.filter(x => !x.bad).length;
+  let secs = 0, count = 0;
+  for (const x of rows) {
+    const li = document.createElement('li');
+    if (x.bad) {
+      li.className = 'bad';
+      li.innerHTML = `<span>!</span><span class="t"><b>Sheet ${x.k + 1}</b>: ${x.r.pending ? 'still checking…' : 'not safe yet, so it can\'t be plotted'}</span><span></span>` +
+        (x.r.pending ? '' : `<span class="how c-warn">${esc(x.r.errors[0] || '')}</span>`);
+      ul.appendChild(li); continue;
+    }
+    const key = jobKey(x), on = pick.has(key);
+    if (on) { secs += x.p.seconds; count++; }
+    li.className = on ? '' : 'off';
+    const file = safeName(S.name) + suffixFor(n, x.k, x.part) + KIND_EXT[S.kind];
+    li.innerHTML = `<input type="checkbox" ${on ? 'checked' : ''} aria-label="Plot sheet ${x.k + 1}, ${x.part === 'a' ? 'part 1' : 'part 2'}"><span class="t"><b>Sheet ${x.k + 1}${x.part === 'b' ? ', part 2 (sheet turned round)' : n > 1 && rows.some(y => y.k === x.k && y.part === 'b') ? ', part 1' : ''}</b><br><small class="muted">${esc(file)} · ≈ ${fmtTime(x.p.seconds)}${S.done[key] ? ' · printed before' : ''}</small></span><span></span>`;
+    li.onclick = e => { if (e.target.tagName !== 'INPUT') e.preventDefault(); pick.has(key) ? pick.delete(key) : pick.add(key); paintPick(); };
+    ul.appendChild(li);
+  }
+  $('pd-kindhelp').textContent = KIND_HELP[S.kind];
+  const dest = $('dest').value, onCard = !['plots', 'downloads'].includes(dest);
+  $('pd-desthelp').textContent = onCard ? 'Saves straight to the card.'
+    : 'No SD card found. Insert the printer\'s card to save straight to it.';
+  $('pd-sum').textContent = count ? `${count} file${count > 1 ? 's' : ''} · ≈ ${fmtTime(secs)}` : 'Tick at least one page';
+  $('pd-go').disabled = !count;
+  $('pd-go').textContent = !count ? 'Save' : `Save ${count > 1 ? count + ' files' : 'the file'}${onCard ? ' to the card' : ''}`;
+}
+$('pd-all').onclick = () => { pick = new Set(jobRows().filter(x => !x.bad).map(jobKey)); paintPick(); };
+$('pd-none').onclick = () => { pick = new Set(); paintPick(); };
+$('pd-go').onclick = async () => {
+  const rows = jobRows().filter(x => !x.bad), n = rows.length, todo = rows.filter(x => pick.has(jobKey(x)));
+  if (!todo.length) return;
+  $('pd-go').disabled = true; $('pd-go').textContent = 'Saving…';
+  const files = [], kind = S.kind, dest = $('dest').value;
+  try {
+    for (const x of todo) {
+      const r = await api('/plot/export', { state: sheetState(x.k), kind, dest, part: x.part, suffix: suffixFor(n, x.k, x.part),
+        title: `${safeName(S.name)} - sheet ${x.k + 1}, ${x.part === 'a' ? 'part 1' : 'part 2 (sheet turned round)'}` });
+      files.push(Object.assign(r, { k: x.k, part: x.part, key: jobKey(x) }));
+    }
+  } catch (e) { toast('Not saved', e.message, 'error'); paintPick(); return; }
+  if (kind === 'plot') { for (const f of files) delete S.done[f.key]; persist(); renderJobs(); }
+  const opt = [...$('dest').options].find(o => o.value === dest);
+  lastSaved = { files, kind, dest, onCard: !['plots', 'downloads'].includes(dest), where: opt ? opt.textContent : dest };
+  showHow();
+  if (lastSaved.onCard) {
+    try {
+      const c = await api('/plot/cardfiles', { dest });
+      const mine = new Set(files.map(f => f.file));
+      const old = c.files.filter(f => !f.ok && !mine.has(f.file));
+      if (old.length) {
+        $('pd-old').hidden = false;
+        $('pd-old').textContent = `Don't print ${old.map(f => f.file).slice(0, 8).join(', ')}${old.length > 8 ? '…' : ''}: made for a different setup. Save ${old.length === 1 ? 'it' : 'them'} again, or delete ${old.length === 1 ? 'it' : 'them'} from the card.`;
+      }
+    } catch (e) {}
+  }
+};
+$('pd-back').onclick = showPick;
+$('save').onclick = openPlot;
+$('howto-open').onclick = () => {
+  if (lastSaved) { showHow(); $('plotdlg').showModal(); return; }
+  openPlot();
+};
+
+/* the instructions shown once the files are saved */
+function showHow() {
+  const L = lastSaved;
+  $('pd-pick').hidden = true; $('pd-how').hidden = false; $('pd-old').hidden = true;
+  $('pd-title').textContent = 'How to plot';
+  const what = { plot: 'plot', rehearsal: 'pen-up rehearsal', outline: 'outline trace' }[L.kind];
+  $('pd-saved').innerHTML = `Saved ${L.files.length > 1 ? L.files.length + ' files' : 'the ' + what + ' file'} to <b>${esc(L.onCard ? 'the card “' + L.dest + '”' : L.where)}</b>. Then:` +
+    (L.kind === 'rehearsal' ? ' The pen stays 10 mm up. Check it never comes near a magnet or the frame.' : '');
+  const ol = $('pd-steps'); ol.innerHTML = '';
+  const step = (title, body, extra) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="what"><h5>${title}</h5>${body ? `<p>${body}</p>` : ''}</div>`;
+    if (extra) li.querySelector('.what').appendChild(extra);
+    ol.appendChild(li); return li;
+  };
+  if (L.onCard) {
+    const row = document.createElement('div'); row.className = 'row';
+    const b = document.createElement('button'); b.className = 'small'; b.textContent = 'Eject the card';
+    b.onclick = async () => { try { await api('/plot/eject', { dest: L.dest }); b.textContent = 'Ejected ✓'; b.disabled = true; refreshVolumes(); } catch (e) { toast('Couldn\'t eject the card', e.message, 'error'); } };
+    row.appendChild(b);
+    step('Eject the card and put it in the printer', 'Pulling it out without ejecting can make it unreadable.', row);
+  } else {
+    const row = document.createElement('div'); row.className = 'row';
+    const b = document.createElement('button'); b.className = 'small'; b.textContent = 'Show in Finder';
+    b.onclick = () => api('/plot/reveal', { path: L.files[0].path });
+    row.appendChild(b);
+    step('Copy the files onto the printer\'s SD card', 'Drag them onto the card in Finder, eject it, and put it in the printer.', row);
+  }
+  step('Take the holder off, then home the printer', 'Use the printer\'s screen. <b>Never home with the holder on.</b>');
+  step('Clip the holder back on', '');
+  L.files.forEach((f, i) => {
+    const turned = f.part === 'b';
+    const tick = document.createElement('label'); tick.className = 'tick';
+    tick.innerHTML = `<input type="checkbox" ${S.done[f.key] && L.kind === 'plot' ? 'checked' : ''}> Done`;
+    const li = step(`Sheet ${f.k + 1}${turned ? ', part 2' : L.files.some(g => g.k === f.k && g.part === 'b') ? ', part 1' : ''}: print <code>${esc(f.file)}</code>`,
+      `${esc(paperHow(f.part, i === 0))} Then print it from the SD card. About ${fmtTime(f.seconds)}.`, tick);
+    if (S.done[f.key] && L.kind === 'plot') li.classList.add('done');
+    tick.querySelector('input').onchange = e => { li.classList.toggle('done', e.target.checked); if (L.kind === 'plot') { S.done[f.key] = e.target.checked; persist(); renderJobs(); } };
+  });
+  step('Take the holder off when you\'re done', 'Before homing or printing anything else.' +
+    (L.kind === 'rehearsal' ? ' All clear? Save again with <b>Draw</b> for the real plot.' : ''));
+  step('If something looks wrong', 'Pause or stop on the printer\'s screen. Take the holder off before resuming or homing.');
+}
 
 /* ---------- sheets ---------- */
 function renderSheets() {
@@ -1573,7 +1852,7 @@ document.querySelectorAll('dialog [data-close]').forEach(b => b.onclick = () => 
 document.querySelectorAll('dialog').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
 
 /* ---------- simulation ---------- */
-const sim = { on: false, playing: false, t: 0, T: 0, speed: 10, strokes: null, starts: null, times: null, drawn: 0, last: 0 };
+const sim = { on: false, playing: false, scrub: false, resume: false, t: 0, T: 0, speed: 10, strokes: null, starts: null, times: null, drawn: 0, last: 0 };
 const PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>', PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
 async function startSim() {
   if (!plan || !plan.stats.strokes) { toast('Nothing to preview', 'Add something to the sheet first.'); return; }
@@ -1648,7 +1927,7 @@ function simRender() {
   const nx = inB ? px + M.offset_x : px - M.offset_x, ny = inB ? py - M.offset_y : py + M.offset_y;
   sim.nozzle.setAttribute('transform', `translate(${nx} ${ny})`);
   sim.holder.setAttribute('x1', nx); sim.holder.setAttribute('y1', ny); sim.holder.setAttribute('x2', px); sim.holder.setAttribute('y2', py);
-  $('s-pos').value = Math.round(t / sim.T * 1000);
+  if (!sim.scrub) setPos(Math.round(t / sim.T * 1000));
   $('s-time').textContent = clock(t) + ' / ' + clock(sim.T) + (sim.partB.some(Boolean) ? (inB ? ' · part 2' : ' · part 1') : '');
 }
 function simFrame(now) {
@@ -1660,8 +1939,21 @@ function simFrame(now) {
 }
 $('play').onclick = () => sim.on ? stopSim() : startSim();
 $('s-close').onclick = stopSim;
-$('s-play').onclick = () => { if (sim.t >= sim.T) sim.t = 0; sim.playing = !sim.playing; $('s-play').innerHTML = sim.playing ? PAUSE : PLAY; };
-$('s-pos').oninput = e => { sim.t = e.target.value / 1000 * sim.T; };
+$('s-play').onclick = () => { if (sim.t >= sim.T) sim.t = 0; sim.playing = !sim.playing; sim.last = performance.now(); $('s-play').innerHTML = sim.playing ? PAUSE : PLAY; };
+/* the preview slider: its filled part follows the knob (the track is painted from --p) */
+function setPos(v) { const r = $('s-pos'); r.value = v; r.style.setProperty('--p', (v / 10) + '%'); }
+/* dragging the knob: playback holds still and follows the drag, then carries on from where it is let go */
+$('s-pos').addEventListener('pointerdown', () => { sim.scrub = true; sim.resume = sim.playing; sim.playing = false; });
+function endScrub() {
+  if (!sim.scrub) return;
+  sim.scrub = false;
+  if (sim.resume && sim.t < sim.T) { sim.playing = true; sim.last = performance.now(); }
+  $('s-play').innerHTML = sim.playing ? PAUSE : PLAY;
+}
+$('s-pos').addEventListener('pointerup', endScrub);
+$('s-pos').addEventListener('pointercancel', endScrub);
+$('s-pos').addEventListener('change', endScrub);
+$('s-pos').oninput = e => { setPos(+e.target.value); sim.t = e.target.value / 1000 * sim.T; if (sim.on) simRender(); };
 $('s-speed').onclick = e => { const v = e.target.dataset.v; if (!v) return; sim.speed = +v; for (const b of $('s-speed').children) b.classList.toggle('on', b.dataset.v === v); };
 
 /* ---------- toolbar ---------- */
@@ -1745,7 +2037,7 @@ window.addEventListener('drop', e => { e.preventDefault(); dragDepth = 0; $('dro
 document.addEventListener('keydown', e => {
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && document.activeElement.type !== 'range';
   const mod = e.metaKey || e.ctrlKey;
-  if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveAll(); return; }
+  if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); if (!$('save').disabled) openPlot(); return; }
   if (typing) return;
   if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicate(); return; }
@@ -1792,13 +2084,13 @@ async function init() {
   drawItems(); renderLayers(); renderProps(); drawSel();
   if (fresh) persist();
   schedulePlan();
-  refreshVolumes(); setInterval(refreshVolumes, 4000);
+  refreshVolumes(); setInterval(refreshVolumes, 4000); loadPrinters();
 }
 /* right panel tabs: Print, Paper, Machine */
 function showRight(v) {
   for (const b of $('rtabs').children) { const on = b.dataset.v === v; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; }
   document.querySelectorAll('aside.right .tabpanel').forEach(p => p.hidden = p.dataset.tab !== v);
-  try { localStorage.setItem('inkprint.rtab', v); } catch (e) {}
+  try { localStorage.setItem('inkplot.rtab', v); } catch (e) {}
 }
 $('rtabs').onclick = e => { const v = e.target.closest('button')?.dataset.v; if (v) showRight(v); };
 $('rtabs').onkeydown = e => {
@@ -1807,12 +2099,12 @@ $('rtabs').onkeydown = e => {
   const n = bs[(i + (e.key === 'ArrowRight' ? 1 : bs.length - 1)) % bs.length]; showRight(n.dataset.v); n.focus();
 };
 let savedTab = 'print';
-try { savedTab = localStorage.getItem('inkprint.rtab') || 'print'; } catch (e) {}
+try { savedTab = localStorage.getItem('inkplot.rtab') || 'print'; } catch (e) {}
 showRight(['print', 'paper', 'machine'].includes(savedTab) ? savedTab : 'print');
 /* a problem with the plot marks the Print tab, so it is seen from the other tabs too */
 new MutationObserver(() => $('rtabs').children[0].classList.toggle('alert', $('status').classList.contains('bad')))
   .observe($('status'), { attributes: true, attributeFilter: ['class'] });
-/* the handwritten InkPrint mark in the header */
+/* the handwritten InkPlot mark in the header */
 (async () => {
   try {
     const d = await api('/logo', {});

@@ -98,7 +98,7 @@ import os as _os
 import types as _types
 
 _HERE = _os.path.dirname(_os.path.abspath(__file__))
-FONTS = _os.environ.get('INKPRINT_FONTS') or _os.path.join(_HERE, 'fonts')
+FONTS = _os.environ.get('INKPLOT_FONTS') or _os.path.join(_HERE, 'fonts')
 _loaded = {}
 
 

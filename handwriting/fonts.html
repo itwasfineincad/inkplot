@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>InkPrint · Fonts</title>
+<title>InkPlot · Fonts</title>
 <meta name="description" content="Make a single-line pen font from your own handwriting: draw it, scan a template, or import a font file.">
 <meta name="theme-color" content="#e6dbc7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#13182a" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#181818" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/app.css">
 <style>
@@ -21,22 +21,22 @@ body { display: grid; grid-template-rows: 56px 1fr; }
 .fontlist li.on { background: var(--tint-2); }
 .fontlist .nm { flex: 1; min-width: 0; }
 .fontlist .nm b { font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fontlist .nm small { color: var(--muted); font-size: 13px; }
+.fontlist .nm small { color: var(--muted); font-size: 12px; }
 .way { padding: 12px 0; }
 .way h3 { font-size: 14px; line-height: 20px; margin: 0 0 4px; }
-.way p { margin: 0 0 8px; color: var(--muted); font-size: 13px; line-height: 18px; }
+.way p { margin: 0 0 8px; color: var(--muted); font-size: 14px; line-height: 20px; }
 .way .row { gap: 8px; flex-wrap: wrap; }
 .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .bar { display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .bar .name { width: 240px; }
 .bar .sp { flex: 1; }
-.bar .state { color: var(--muted); font-size: 13px; }
+.bar .state { color: var(--muted); font-size: 12px; }
 .scroll { overflow-y: auto; padding: 16px 24px 32px; }
-.lead { margin: 0 0 12px; max-width: 70ch; color: var(--muted); font-size: 13px; line-height: 18px; }
+.lead { margin: 0 0 12px; max-width: 70ch; color: var(--muted); font-size: 14px; line-height: 20px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, 96px); gap: 8px; }
 .cell { position: relative; width: 96px; height: 160px; border-radius: var(--r-sm); background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); }
 .cell canvas { width: 96px; height: 160px; display: block; touch-action: none; cursor: crosshair; border-radius: var(--r-sm); }
-.cell .lbl { position: absolute; left: 6px; top: 4px; font-size: 13px; color: #8a8a8a; pointer-events: none; }
+.cell .lbl { position: absolute; left: 6px; top: 4px; font-size: 12px; color: #8a8a8a; pointer-events: none; }
 .cell .clr { position: absolute; right: 2px; top: 2px; width: 24px; height: 24px; min-height: 0; padding: 0; border-radius: 6px; font-size: 14px; opacity: 0;
   background: transparent; color: #6b6b6b; }
 .cell:hover .clr, .cell .clr:focus-visible { opacity: 1; }
@@ -55,7 +55,7 @@ body { display: grid; grid-template-rows: 56px 1fr; }
 <body>
 <a class="skip" href="#main">Skip to the drawing grid</a>
 <header class="appbar">
-  <a class="brand" href="/" aria-label="InkPrint"><svg id="logo" viewBox="0 0 10 10" role="img" aria-label="InkPrint"></svg></a>
+  <a class="brand" href="/" aria-label="InkPlot"><svg id="logo" viewBox="0 0 10 10" role="img" aria-label="InkPlot"></svg></a>
   <nav class="pages" aria-label="Pages"><a href="/">Write</a><a href="/plotter">Plotter</a><a href="/fonts" aria-current="page">Fonts</a></nav>
   <div class="appbar__tools"></div>
 </header>
@@ -65,26 +65,26 @@ body { display: grid; grid-template-rows: 56px 1fr; }
   <section class="sec">
     <div class="sec__head"><h2>Your fonts</h2><button class="small" id="new">New font</button></div>
     <ul class="fontlist" id="fonts"></ul>
-    <p class="help mt">Pick one to see it and redraw any letter. To write with a font, choose it on the Write page (Look tab, font mode) or save it as a handwriting style.</p>
+    <p class="help mt">Open a font to see it or redraw a letter. To write with it, pick it on the Write page under Look.</p>
   </section>
   <section class="sec">
     <div class="sec__head"><h2>Three ways to make one</h2></div>
     <div class="way">
       <h3>1. Draw it here</h3>
-      <p>Draw each character in its box with a mouse, trackpad or drawing tablet. What you draw is exactly the line the pen will follow.</p>
+      <p>Draw each letter in its box. The pen follows exactly what you draw.</p>
     </div>
     <div class="way">
       <h3>2. Scan your writing</h3>
-      <p>Print the template at 100%, write every character in its box with a dark pen, then scan it or take a flat, sharp photo of the whole page, with all four black squares showing.</p>
+      <p>Print the template at 100% and fill in each box with a dark pen. Scan it, or photograph the page flat with all four black squares in view.</p>
       <div class="row"><a class="btn" href="/fonts/template.pdf" download>Download the template</a>
         <button type="button" id="scanbtn">Upload the scan…</button><input type="file" id="scanfile" accept="image/*,.heic,.heif,.pdf" hidden></div>
     </div>
     <div class="way">
       <h3>3. Import a font file</h3>
-      <p>Made a font with Calligraphr or FontCrafter? Import its .ttf or .otf: its letters are traced down to single pen lines. Single-line .svg fonts (Inkscape Hershey Text) import as they are.</p>
+      <p>A .ttf or .otf font is traced to single pen lines. Single-line .svg fonts are used as they are.</p>
       <div class="row"><button type="button" id="fontbtn">Import a font file…</button><input type="file" id="fontfile" accept=".ttf,.otf,.svg" hidden></div>
     </div>
-    <p class="help">Your fonts are your own handwriting: they stay on this Mac and are never published.</p>
+    <p class="help">Your fonts stay on this Mac.</p>
   </section>
 </aside>
 
@@ -97,7 +97,7 @@ body { display: grid; grid-template-rows: 56px 1fr; }
     <button class="small" id="clear">Clear every box</button>
   </div>
   <div class="scroll">
-    <p class="lead">Write each character so it sits on the solid line. Small letters (a, c, e…) reach the dashed line; tall letters and capitals go above it, tails below. Lowercase letters have two boxes: draw them slightly differently and the studio mixes them so repeated letters don't look stamped. Press ⌘Z to undo your last stroke; hover a box and press × to clear it.</p>
+    <p class="lead">Sit each letter on the solid line; small letters reach the dashed line. Lowercase letters have two boxes: draw them a little differently so repeats don't look identical. ⌘Z undoes a stroke.</p>
     <div id="grid"></div>
     <section class="try" aria-label="Try the font">
       <div class="row"><input type="text" id="trytext" value="The quick brown fox jumps over the lazy dog. 0123456789" aria-label="Text to try"><button id="trybtn">Try it</button></div>

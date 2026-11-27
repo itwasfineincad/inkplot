@@ -1,5 +1,5 @@
 """
-InkPrint, the handwriting studio: type text and have it written by the AI
+InkPlot, the handwriting studio: type text and have it written by the AI
 handwriting model or by a single-line font (the Write page), then lay it
 out with drawings and labels and make checked G-code for the printer (the
 Plotter page, see plotjob.py).
@@ -36,7 +36,7 @@ import model_engine as me  # noqa: E402
 import plotjob  # noqa: E402
 from urllib.parse import unquote  # noqa: E402
 
-APP_NAME = 'InkPrint'           # working name for the public release (not final)
+APP_NAME = 'InkPlot'
 OUT = os.path.join(HERE, 'out')
 SETTINGS = os.path.join(HERE, 'ui_settings.json')
 PAGE = os.path.join(HERE, 'ui.html')
@@ -151,7 +151,7 @@ class Handler(BaseHTTPRequestHandler):
                 data = f.read()
             self.send_response(200)
             self.send_header('Content-Type', 'application/pdf')
-            self.send_header('Content-Disposition', 'attachment; filename="InkPrint handwriting template.pdf"')
+            self.send_header('Content-Disposition', 'attachment; filename="InkPlot handwriting template.pdf"')
             self.send_header('Content-Length', str(len(data)))
             self.end_headers()
             self.wfile.write(data)
@@ -191,6 +191,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send(plotjob.thumb(unquote(path[len('/plot/thumb/'):])), 'image/svg+xml')
         elif path == '/plot/volumes':
             self._send(plotjob.volumes())
+        elif path == '/plot/printers':
+            self._send(plotjob.printer_list())
         elif path == '/plot/write':
             try:
                 with open(SETTINGS) as f:
@@ -233,6 +235,12 @@ class Handler(BaseHTTPRequestHandler):
         elif path == '/plot/machine':
             plotjob.set_machine(req.get('set') or {})
             self._send(plotjob.machine(req.get('settings')))
+        elif path == '/plot/printers':
+            out = plotjob.printer_action(req)
+            out['machine'] = plotjob.machine(req.get('settings'))
+            self._send(out)
+        elif path == '/plot/cardfiles':
+            self._send(plotjob.card_files(req.get('dest')))
         elif path == '/plot/calibrate':
             self._send(plotjob.calibration_file(req.get('step'), req.get('dest'), req.get('settings'),
                                                 req.get('a'), req.get('b')))

@@ -1,5 +1,5 @@
 #!/bin/bash
-# InkPrint installer for macOS.
+# InkPlot installer for macOS.
 #   1. makes a Python 3.11 environment in ~/.venvs/handwriting-synthesis
 #   2. installs TensorFlow 2.15 and the other libraries
 #   3. downloads the handwriting model (github.com/sjvasquez/handwriting-synthesis,
@@ -7,7 +7,7 @@
 # Safe to run again: it skips what is already done.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VENV="${INKPRINT_VENV:-$HOME/.venvs/handwriting-synthesis}"   # INKPRINT_VENV: use another folder (for testing)
+VENV="${INKPLOT_VENV:-$HOME/.venvs/handwriting-synthesis}"   # INKPLOT_VENV: use another folder (for testing)
 MODEL_REPO="https://github.com/sjvasquez/handwriting-synthesis.git"
 MODEL_COMMIT="5f58984c3bc793bd8930bad7012cd2008d4a4a66"
 SYN="$ROOT/handwriting-synthesis"
@@ -60,5 +60,5 @@ fi
 chmod +x "$SYN/plotcheck" "$SYN/calibrate" "$SYN/magnets" "$ROOT/handwriting/My Handwriting.command" 2>/dev/null || true
 
 say "Done"
-echo "Start InkPrint by double-clicking handwriting/My Handwriting.command."
+echo "Start InkPlot by double-clicking handwriting/My Handwriting.command."
 echo "Before plotting, calibrate the pen: Plotter page > Calibration > Calibrate."

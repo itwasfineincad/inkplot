@@ -1,8 +1,7 @@
-/* InkPrint app styles, shared by ui.html (Write) and plot.html (Plotter).
-   Dealt with design-taste-frontend (start.mjs): kind software, palette cobalt-on-sand
-   (warm stone paper ground, navy ink: the app writes ink on paper), type geist,
-   radius soft, buttons tonal. The --p-* block is kept exactly as the dealer printed it;
-   everything else is derived from it. Page-only styles stay in each page. */
+/* InkPlot app styles, shared by ui.html (Write), plot.html (Plotter) and fonts.html (Fonts).
+   Theme (2026-11-27, redesign-existing-projects): one font (Geist), one accent (the pen blue), neutral
+   charcoal for dark mode, paper ground with near-black text for light mode. Type sizes 12 / 14 / 16 / 18
+   (Tailwind steps), radius 8 / 12 / 16, one easing curve. Page-only styles stay in each page. */
 
 @font-face { font-family: "Geist"; src: url("/static/fonts/geist-latin.woff2") format("woff2"); font-weight: 100 900; font-display: swap;
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
@@ -10,45 +9,37 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 
 :root {
-  --p-bg: #e6dbc7; --p-surface: #ddd0b9; --p-ink: #062b8a; --p-muted: #3253a4;
-  --p-accent: #062b8a; --p-accent-ink: #e6dbc7; --p-action: #062b8a; --p-action-ink: #e6dbc7;
-  --p-inv-bg: #062b8a; --p-inv-surface: #153a90; --p-inv-ink: #e6dbc7; --p-inv-muted: #aab0bc;
-  --p-inv-accent: #e6dbc7; --p-inv-accent-ink: #062b8a; --p-inv-action: #e6dbc7; --p-inv-action-ink: #062b8a;
   --font-text: "Geist", ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* radius soft: controls 8, panels 12, frames 20 */
-  --r-sm: 8px; --r-md: 12px; --r-lg: 20px; --r-btn: 8px;
-  /* motion (motion.md): one UI ease-out, hover 150 in / 120 out, press 90 */
-  --ease: cubic-bezier(.2, .8, .2, 1); --ease-enter: cubic-bezier(.22, 1, .36, 1);
-  --m-in: 150ms; --m-out: 120ms; --m-press: 90ms; --m-panel: 200ms; --m-slide: 240ms;
+  /* radius: rounded-lg 8, rounded-xl 12, rounded-2xl 16 */
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-btn: 8px;
+  /* motion: one curve; colour and opacity 300ms, movement 500ms, press 200ms */
+  --ease: cubic-bezier(.22, 1, .36, 1); --ease-enter: cubic-bezier(.22, 1, .36, 1);
+  --m-in: 300ms; --m-out: 300ms; --m-press: 200ms; --m-panel: 500ms; --m-slide: 500ms;
   --z-float: 2; --z-toast: 20; --z-skip: 30;
 
-  /* light: ink on sand. Dark (below): the dealt inverse, deepened toward black for evening use */
-  --bg: var(--p-bg); --surface: var(--p-surface); --ink: var(--p-ink); --muted: var(--p-muted);
-  --action: var(--p-action); --action-ink: var(--p-action-ink);
-  --field: #f1ebe0;   /* the ground mixed 55% into white */
-  --desk: var(--p-surface);
+  /* light: near-black text on a paper-coloured ground; the pen blue is the one accent */
+  --bg: #e6dbc7; --surface: #ddd0b9; --field: #f1ebe0; --desk: #ddd0b9;
+  --ink: #1F1F1F; --muted: color-mix(in oklab, #1F1F1F 66%, #e6dbc7);
+  --action: #062b8a; --action-ink: #e6dbc7;
   --ok: #2f6b3a; --warn: #a3361f; --amber: #7a4f0d;
   --paper: #fffef9; --pen: #062b8a; --rule: #b7cbe6; --margin: #e2a39b;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #101a2d; --surface: #141f33;   /* = the inverse bg and surface mixed 26% / 30% into #11110f */
-    --ink: var(--p-inv-ink); --muted: var(--p-inv-muted);
-    --action: var(--p-inv-action); --action-ink: var(--p-inv-action-ink);
-    --field: #0c121f;
-    --desk: #0c111a;
+    --bg: #181818; --surface: #1F1F1F; --field: #272727; --desk: #131209;
+    --ink: #e6dbc7; --muted: color-mix(in oklab, #e6dbc7 62%, #181818);
+    --action: #e6dbc7; --action-ink: #181818;
     --ok: #9fd8a9; --warn: #ffb29c; --amber: #f2c46d; --paper: #f6f2e8;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #101a2d; --surface: #141f33;   /* = the inverse bg and surface mixed 26% / 30% into #11110f */
-  --ink: var(--p-inv-ink); --muted: var(--p-inv-muted);
-  --action: var(--p-inv-action); --action-ink: var(--p-inv-action-ink);
-  --field: #0c121f;
-  --desk: #0c111a;
+  --bg: #181818; --surface: #1F1F1F; --field: #272727; --desk: #131209;
+  --ink: #e6dbc7; --muted: color-mix(in oklab, #e6dbc7 62%, #181818);
+  --action: #e6dbc7; --action-ink: #181818;
   --ok: #9fd8a9; --warn: #ffb29c; --amber: #f2c46d; --paper: #f6f2e8;
   color-scheme: dark;
 }
@@ -60,7 +51,8 @@
   --ok-soft: color-mix(in oklab, var(--ok) 14%, transparent);
   --warn-soft: color-mix(in oklab, var(--warn) 14%, transparent);
   --amber-soft: color-mix(in oklab, var(--amber) 14%, transparent);
-  --shadow: 0 1px 2px color-mix(in oklab, var(--p-ink) 10%, transparent), 0 12px 32px color-mix(in oklab, var(--p-ink) 12%, transparent);
+  /* shadows tinted toward the ground, one light source from above */
+  --shadow: 0 1px 2px color-mix(in oklab, var(--bg) 40%, rgb(0 0 0 / .18)), 0 12px 32px color-mix(in oklab, var(--bg) 40%, rgb(0 0 0 / .28));
 }
 
 /* base ------------------------------------------------------------------ */
@@ -73,7 +65,7 @@ body { background: var(--bg); color: var(--ink); font: 400 14px/20px var(--font-
 h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
 p { margin: 0; text-wrap: pretty; }
 a { color: inherit; }
-small, .small { font-size: 13px; line-height: 18px; }
+small, .small { font-size: 12px; line-height: 16px; }
 .muted { color: var(--muted); }
 :focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
 .skip { position: absolute; left: 8px; top: -48px; z-index: var(--z-skip); background: var(--action); color: var(--action-ink); padding: 8px 12px; border-radius: var(--r-btn); font-weight: 500; text-decoration: none; }
@@ -97,7 +89,7 @@ small, .small { font-size: 13px; line-height: 18px; }
 
 /* buttons: one pair (primary filled, secondary tonal), plus bare icon buttons -- */
 button, a.btn {
-  font: 500 14px/20px var(--font-text); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font: 600 14px/20px var(--font-text); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   height: 36px; padding: 0 12px; border-radius: var(--r-btn); border: 1px solid transparent;
   background: var(--tint); color: var(--ink); cursor: pointer; white-space: nowrap; text-decoration: none;
   transition: background-color var(--m-out) var(--ease), color var(--m-out) var(--ease), border-color var(--m-out) var(--ease), transform var(--m-press) var(--ease);
@@ -112,7 +104,7 @@ button.ghost:hover, a.btn.ghost:hover { background: var(--tint); }
 button.on { background: var(--tint-2); box-shadow: inset 0 0 0 1px var(--line-strong); }
 button.lg { height: 44px; padding: 0 20px; font-size: 16px; line-height: 24px; }
 button.wide { width: 100%; }
-button.small { height: 28px; padding: 0 8px; font-size: 13px; }
+button.small { height: 32px; padding: 0 12px; font-size: 14px; }
 button.icon { width: 36px; padding: 0; }
 button.danger:hover { color: var(--warn); }
 button:disabled { opacity: .45; cursor: default; }
@@ -121,18 +113,18 @@ button svg, a.btn svg { width: 16px; height: 16px; flex: none; stroke-width: 1.7
   button:not(:disabled):hover, a.btn:hover { transform: translateY(-1px); }
   button.icon:hover, .seg button:hover, button.ghost:hover { transform: none; }
 }
-button:not(:disabled):active, a.btn:active { transform: translateY(1px) scale(.985); transition-duration: var(--m-press); }
+button:not(:disabled):active, a.btn:active { transform: translateY(1px) scale(.98); transition-duration: var(--m-press); }
 
 /* segmented control and tabs: the ink pill, its label in the ground colour */
 .seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--r-btn); background: var(--tint); }
-.seg button { height: 28px; padding: 0 10px; border-radius: 6px; background: transparent; color: var(--muted); font-size: 13px; }
+.seg button { height: 32px; padding: 0 12px; border-radius: 6px; background: transparent; color: var(--muted); font-size: 14px; }
 .seg button:hover { background: var(--tint); color: var(--ink); }
 .seg button.on { background: var(--ink); color: var(--bg); box-shadow: none; }
 .tabs { display: flex; width: 100%; }
 .tabs button { flex: 1; height: 32px; font-size: 14px; }
 
 /* header view toggles: pressed state shown with a dot */
-.toggle { height: 36px; padding: 0 12px; font-size: 13px; color: var(--muted); background: transparent; }
+.toggle { height: 36px; padding: 0 12px; font-size: 14px; color: var(--muted); background: transparent; }
 .toggle::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; flex: none; transition: background-color var(--m-out) var(--ease); }
 .toggle.on { color: var(--ink); background: var(--tint); box-shadow: none; }
 .toggle.on::before { background: currentColor; }
@@ -140,7 +132,7 @@ button:not(:disabled):active, a.btn:active { transform: translateY(1px) scale(.9
 /* fields ------------------------------------------------------------------ */
 input[type=number], input[type=text], select, textarea {
   font: 400 14px/20px var(--font-text); color: var(--ink); background: var(--field); width: 100%;
-  border: 1px solid var(--line-strong); border-radius: var(--r-sm); padding: 7px 10px; outline: none;
+  border: 1px solid var(--line-strong); border-radius: var(--r-sm); padding: 7px 12px; outline: none;
   transition: border-color var(--m-out) var(--ease), box-shadow var(--m-out) var(--ease);
 }
 input[type=number]:hover, input[type=text]:hover, select:hover, textarea:hover { border-color: color-mix(in oklab, var(--ink) 45%, transparent); }
@@ -153,11 +145,11 @@ textarea { resize: vertical; }
 input[type=checkbox] { accent-color: var(--action); width: 16px; height: 16px; }
 .unit { position: relative; }
 .unit input { padding-right: 34px; }
-.unit em { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 13px; color: var(--muted); pointer-events: none; }
+.unit em { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 12px; color: var(--muted); pointer-events: none; }
 .fields { display: grid; grid-template-columns: 1fr 104px; gap: 8px 12px; align-items: center; }
 .fields > label { font-size: 14px; line-height: 20px; }
 .fields > label small { display: block; color: var(--muted); }
-.f label { display: block; font-size: 13px; line-height: 18px; font-weight: 500; color: var(--muted); margin-bottom: 4px; }
+.f label { display: block; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--muted); margin-bottom: 4px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .row { display: flex; gap: 8px; align-items: center; }
 .row.wrap { flex-wrap: wrap; }
@@ -167,9 +159,9 @@ input[type=checkbox] { accent-color: var(--action); width: 16px; height: 16px; }
 /* sliders: label and value on one line, ends under it */
 .range, .slider { margin: 0 0 16px; }
 .range .top, .slider .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 2px; font-size: 14px; }
-.pill { font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
-.tag { font-size: 13px; color: var(--muted); margin-left: 8px; font-weight: 400; }
-.ends { display: flex; justify-content: space-between; font-size: 13px; line-height: 18px; color: var(--muted); }
+.pill { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.tag { font-size: 12px; color: var(--muted); margin-left: 8px; font-weight: 400; }
+.ends { display: flex; justify-content: space-between; font-size: 12px; line-height: 16px; color: var(--muted); }
 input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 24px; background: transparent; margin: 0; cursor: pointer; }
 input[type=range]:focus-visible { outline-offset: 0; border-radius: var(--r-sm); }
 input[type=range]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: linear-gradient(to right, var(--ink) 0 var(--p, 50%), var(--line-strong) var(--p, 50%) 100%); }
@@ -192,30 +184,30 @@ input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 
 .switch small { display: block; color: var(--muted); }
 
 /* panel sections: no boxed cards, a hairline between sections ---------------- */
-.sec { padding: 16px 0; border-top: 1px solid var(--line); }
+.sec { padding: 16px 0 24px; border-top: 1px solid var(--line); }
 .sec:first-child { border-top: 0; }
 .sec__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; min-height: 28px; }
-.sec__head h2, .sec__head h3 { font-size: 14px; line-height: 20px; }
-.sec__head .note-inline { font-size: 13px; color: var(--muted); font-weight: 400; }
-.help { color: var(--muted); font-size: 13px; line-height: 18px; }
-.note { font-size: 13px; line-height: 18px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--amber-soft); color: var(--amber); margin-top: 8px; }
+.sec__head h2, .sec__head h3 { font-size: 16px; line-height: 24px; }
+.sec__head .note-inline { font-size: 14px; color: var(--muted); font-weight: 400; }
+.help { color: var(--muted); font-size: 14px; line-height: 20px; max-width: 65ch; }
+.note { font-size: 14px; line-height: 20px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--amber-soft); color: var(--amber); margin-top: 8px; }
 .note.info { background: var(--tint); color: var(--ink); }
 .c-ok { color: var(--ok); }
 .c-warn { color: var(--warn); }
-details.steps summary { cursor: pointer; font-size: 13px; font-weight: 500; color: var(--muted); margin-top: 12px; border-radius: 4px; transition: color var(--m-out) var(--ease); }
+details.steps summary { cursor: pointer; font-size: 14px; font-weight: 500; color: var(--muted); margin-top: 12px; border-radius: 4px; transition: color var(--m-out) var(--ease); }
 details.steps summary:hover { color: var(--ink); }
-details.steps ol { padding-left: 18px; margin: 8px 0 0; font-size: 13px; line-height: 18px; }
+details.steps ol { padding-left: 16px; margin: 8px 0 0; font-size: 14px; line-height: 20px; }
 details.steps li { margin-bottom: 6px; }
 
 /* dialogs ------------------------------------------------------------------- */
 dialog { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg); color: var(--ink); padding: 0; box-shadow: var(--shadow); max-width: calc(100vw - 32px); max-height: calc(100vh - 48px); }
 dialog[open] { animation: rise var(--m-panel) var(--ease-enter); }
-dialog::backdrop { background: color-mix(in oklab, var(--p-ink) 30%, transparent); }
+dialog::backdrop { background: color-mix(in oklab, var(--bg) 30%, rgb(0 0 0 / .45)); }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
-dialog .dh { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 20px 8px; }
+dialog .dh { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 24px 24px 8px; }
 dialog .dh h2 { font-size: 18px; line-height: 28px; }
-dialog .db { padding: 4px 20px 20px; overflow-y: auto; }
-dialog .lead { font-size: 15px; line-height: 22px; margin: 0 0 16px; max-width: 62ch; }
+dialog .db { padding: 4px 24px 24px; overflow-y: auto; }
+dialog .lead { font-size: 16px; line-height: 24px; margin: 0 0 16px; max-width: 65ch; }
 
 /* toast --------------------------------------------------------------------- */
 #toast { position: fixed; right: 24px; bottom: 24px; z-index: var(--z-toast); max-width: 420px; background: var(--bg); color: var(--ink); border: 1px solid var(--line);
@@ -224,7 +216,7 @@ dialog .lead { font-size: 15px; line-height: 22px; margin: 0 0 16px; max-width: 
 #toast.show { transform: none; opacity: 1; pointer-events: auto; }
 #toast h4 { margin: 0 0 4px; font-size: 14px; }
 #toast p { margin: 0 0 8px; white-space: pre-line; color: var(--muted); }
-#toast ul { margin: 8px 0 12px; padding-left: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#toast ul { margin: 8px 0 12px; padding-left: 16px; color: var(--muted); font-variant-numeric: tabular-nums; }
 #toast .row, #toast .row2 { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
 #toast.error h4 { color: var(--warn); }
 #toast.good h4 { color: var(--ok); }

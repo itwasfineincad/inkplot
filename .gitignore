@@ -1,4 +1,4 @@
-# InkPrint: what goes into the public repository.
+# InkPlot: what goes into the public repository.
 
 # macOS and Python junk
 .DS_Store
@@ -22,6 +22,7 @@ handwriting/out/
 # your machine's pen offset (calibration.example.json is the template)
 handwriting-synthesis/calibration.json
 handwriting-synthesis/magnets.json
+handwriting-synthesis/printers.json
 handwriting-synthesis/logs/
 .release-backup/
 .claude/*
@@ -38,6 +39,7 @@ handwriting-synthesis/*
 !handwriting-synthesis/calibrate
 !handwriting-synthesis/magnets.py
 !handwriting-synthesis/magnets
+!handwriting-synthesis/printers.py
 !handwriting-synthesis/my_hand.py
 !handwriting-synthesis/handwrite.py
 !handwriting-synthesis/calibration.example.json

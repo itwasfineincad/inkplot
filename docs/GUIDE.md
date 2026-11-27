@@ -1,4 +1,4 @@
-# InkPrint guide
+# InkPlot guide
 
 Everything from unboxing to a finished letter, one step at a time. If you only read one section, read
 [Safety](#safety): a pen holder on a 3D printer can hit the frame if you skip a step.
@@ -6,7 +6,7 @@ Everything from unboxing to a finished letter, one step at a time. If you only r
 **Contents**
 
 1. [What you need](#1-what-you-need)
-2. [Install InkPrint](#2-install-inkprint)
+2. [Install InkPlot](#2-install-inkplot)
 3. [Start the studio](#3-start-the-studio)
 4. [Set up the printer (once)](#4-set-up-the-printer-once)
 5. [Calibrate the pen](#5-calibrate-the-pen)
@@ -25,8 +25,8 @@ Everything from unboxing to a finished letter, one step at a time. If you only r
 
 | | |
 |---|---|
-| **Printer** | A Bambu Lab X1E (other printers need measuring first, see [Other printers](#12-other-printers)) |
-| **Pen holder** | A holder that clips onto the toolhead and holds a pen beside the nozzle. InkPrint was built with the UMTS pen holder. |
+| **Printer** | A Bambu Lab X1E, or another printer once you've measured it ([Other printers](#12-other-printers)) |
+| **Pen holder** | A holder that clips onto the toolhead and holds a pen beside the nozzle. InkPlot was built with the UMTS pen holder. |
 | **Pen** | A fine pen or fineliner (0.3–0.5 mm) |
 | **Paper** | A4 (210 x 297 mm). Other sizes can be set on the Paper tab. |
 | **Magnets** | Four round magnets, about 10 mm across and 5 mm tall, to hold the paper flat |
@@ -35,9 +35,9 @@ Everything from unboxing to a finished letter, one step at a time. If you only r
 
 Plotting doesn't need filament: the printer only moves, the pen does the writing.
 
-## 2. Install InkPrint
+## 2. Install InkPlot
 
-**a. Python 3.11.** InkPrint's handwriting model needs exactly Python 3.11.
+**a. Python 3.11.** InkPlot's handwriting model needs exactly Python 3.11.
 
 1. Install [Homebrew](https://brew.sh) if you don't have it: copy the line from its home page into the
    **Terminal** app and press Return.
@@ -47,19 +47,19 @@ Plotting doesn't need filament: the printer only moves, the pen does the writing
    brew install python@3.11
    ```
 
-**b. Download InkPrint.** On the [InkPrint page](https://github.com/itwasfineincad/inkprint), click the green
+**b. Download InkPlot.** On the [InkPlot page](https://github.com/itwasfineincad/inkplot), click the green
 **Code** button, then **Download ZIP**. Double-click the ZIP to unzip it and move the folder somewhere permanent,
 such as your Documents folder.
 
 Or, if you use git:
 
 ```bash
-git clone https://github.com/itwasfineincad/inkprint.git
+git clone https://github.com/itwasfineincad/inkplot.git
 ```
 
-**c. Run the installer.** In the InkPrint folder, double-click **Install InkPrint.command**.
+**c. Run the installer.** In the InkPlot folder, double-click **Install InkPlot.command**.
 
-> **"Install InkPrint.command" can't be opened** (or "Apple could not verify…")? macOS asks this the first
+> **"Install InkPlot.command" can't be opened** (or "Apple could not verify…")? macOS asks this the first
 > time you open anything downloaded that isn't from the App Store. Right-click the file, choose **Open**,
 > then **Open** again. On newer macOS: **System Settings > Privacy & Security**, scroll down, and click
 > **Open Anyway** next to the file's name. The same applies to **My Handwriting.command** the first time.
@@ -100,19 +100,20 @@ The studio has three pages, in the bar at the top:
 
 ## 4. Set up the printer (once)
 
-1. **Turn off the printer's print monitoring**: spaghetti (AI) detection, air-printing detection and first
-   layer inspection, in the printer's settings. A plot extrudes nothing, so these checks can think something
-   went wrong and pause the printer mid-plot, which can knock the holder.
-2. **Never home with the holder on.** Homing sends the head to places the holder can't go. The habit is:
+1. **Choose your printer**: **Plotter > Machine > Printer**. The Bambu Lab X1E is the default.
+2. **Turn off the printer's print monitoring** (Bambu: air-printing detection and first layer inspection) in
+   the printer's settings. A plot extrudes nothing, so these checks can pause it mid-plot and knock the holder.
+   Files for Bambu printers already turn off spaghetti detection themselves.
+3. **Never home with the holder on.** Homing sends the head to places the holder can't go. The habit is:
    home from the printer's screen with the holder **off**, move the head to the middle of the bed, then clip
    the holder on.
-3. **Paper position**: InkPrint assumes the sheet lies with its **left edge against the left side of the bed**
+4. **Paper position**: InkPlot assumes the sheet lies with its **left edge against the left side of the bed**
    and its **top edge against the back of the bed**, with magnets on the corners. The Plotter page shows where
    each magnet goes.
 
 ## 5. Calibrate the pen
 
-The pen sits beside the nozzle, so InkPrint needs to know exactly where. Open **Plotter > Machine >
+The pen sits beside the nozzle, so InkPlot needs to know exactly where. Open **Plotter > Machine >
 Calibrate…** and follow the four steps. Each step saves a small file to print.
 
 1. **Pen.** Enter how far the pen tip should stick out below the nozzle tip (**10 mm** works well) and the
@@ -127,8 +128,9 @@ Calibrate…** and follow the four steps. Each step saves a small file to print.
 4. **Check.** Print the check cross on a fresh sheet. It should land exactly where the dialog says. If it is
    more than about 1 mm out, measure where it landed, type it in, and click **Correct the offset**.
 
-Calibrate again whenever you re-clip the holder, move the pen in it, or change the pad. Plot files remember
-the pen height they were made for, so **save your plot files again after recalibrating**.
+Calibrate again whenever you re-clip the holder, move the pen in it, change the pad or switch printer. Every
+file records the printer, pen, pad and offset it was made for, and the safety check refuses it once any of
+those change, so **save your plot files again after recalibrating**.
 
 ## 6. Your first plot
 
@@ -144,12 +146,15 @@ the pen height they were made for, so **save your plot files again after recalib
 4. Check the **Print** tab. **Safe to plot** means the file has passed every safety check. It also shows the
    time, the number of strokes and how much ink line will be drawn.
 5. Click **Preview** (top right) to watch the pen, nozzle and holder move through the plot.
-6. Under **Save to**, choose the printer's **SD card** (or a folder), and click **Save plot file**.
-7. **First time with a new drawing?** Under **Print jobs**, choose **Pen up** and save that too. It is the same
-   plot with the pen 10 mm above the paper: print it first and watch that nothing gets near the frame or the
-   magnets.
-8. Click **Eject** before pulling the card out. Put it in the printer, home with the holder off, clip the
-   holder on, and start the file from the printer's screen.
+6. Click **Plot…** (bottom right). In the window:
+   1. **Which pages?** Tick the sheets and parts to plot.
+   2. **Pen**: **Draw** for the real plot. **First time with a new layout?** Choose **Pen up (rehearsal)**
+      first: the same moves with the pen 10 mm above the paper, so you can check nothing hits the frame or a
+      magnet.
+   3. **Save to**: the printer's **SD card** (put it in your Mac first) or a folder.
+7. Click **Save**. The window then shows **How to plot**: eject the card, home with the holder off, clip it
+   on, and one step per file saying where the paper goes and which file to print. Tick each as you go.
+   **How to plot, step by step** on the Print tab opens it again.
 
 ## 7. Long letters and whole pages
 
@@ -167,9 +172,8 @@ and choose **Where**:
 - **Carry on under the writing on this sheet**: continue below what's already there.
 - **Start on new sheets**: add sheets after the current one.
 
-It wraps the text, fills each sheet, splits it into parts and adds more sheets as needed. The **Print jobs**
-list then shows every file in order, each with what to do with the paper first ("turn the sheet round, bottom
-edge against the back…"). Tick each one off as you print it.
+It wraps the text, fills each sheet, splits it into parts and adds more sheets as needed. **Plot…** then
+saves every file in order, and **How to plot** says what to do with the paper before each one.
 
 > Don't use **Handwriting** for a long text: anything too big for the reachable area is shrunk to fit, and the
 > Selected panel will say "Printed at N% of its real size". Page of writing keeps the writing at full size.
@@ -179,7 +183,7 @@ edge against the back…"). Tick each one off as you print it.
 On the **Paper** tab, switch on **Write on lined paper** and measure your sheet in mm: the first line from the top, the
 last line from the bottom, the margin from the left, where the lines end on the right, and the line spacing.
 
-InkPrint then works out where the sheet has to go so the writing lands on the lines. Often that means sliding
+InkPlot then works out where the sheet has to go so the writing lands on the lines. Often that means sliding
 the sheet a few mm forward from the back of the bed. The **placement bar** on the canvas and the print job
 instructions give the exact distance and where the magnets go. Measure at both ends of the sheet so it sits
 square.
@@ -209,7 +213,7 @@ All three end up in the same place.
 1. Click **New font** and type a name.
 2. Draw each character in its box. Letters **sit on the solid line**; small letters (a, c, e, n, o…) reach
    the **dashed line**; tall letters and capitals go above it; tails (g, j, p, y) go below.
-3. Small letters have **two boxes**: draw them slightly differently, and InkPrint mixes the two so repeated
+3. Small letters have **two boxes**: draw them slightly differently, and InkPlot mixes the two so repeated
    letters don't look stamped.
 4. **⌘Z** undoes a stroke; hover a box and click **×** to clear it. Click **Save font**, then type in
    **Try it** to check.
@@ -241,18 +245,19 @@ excluded from git, so they can't be published by accident.
 
 | What happens | What to do |
 |---|---|
-| The printer **paused by itself** mid-plot (bed dropped, head moved to a corner) | Its print monitoring stopped it. Turn off spaghetti, air-printing and first layer detection (step 4). Don't resume with the holder on: take the holder off first. |
+| The printer **paused by itself** mid-plot (bed dropped, head moved to a corner) | Its print monitoring stopped it. Turn off air-printing and first layer detection (step 4) and save the files again. Don't resume with the holder on: take the holder off first. |
+| **plotcheck says NOT SAFE for this setup** | The file was made for another pen, pad, offset or printer. Save it again from the Plotter. |
 | The pen **doesn't touch** the paper, or presses too hard | Redo calibration step 1 (pen height), then save your plot files again. Check the **Pad under the paper** value matches what's really there. |
 | Writing lands **in the wrong place** | Redo calibration steps 2–4. Check the sheet is pushed fully into the back-left corner (or placed where the print job says). |
 | A **red message** on the Print tab | It says what's wrong, e.g. something in the red area or over a magnet. Move or shrink that item. Files are only saved once the check passes. |
-| The printer **can't read the SD card** | Click **Eject** before pulling the card out. **Clean card** removes hidden macOS files the printer may show as junk. |
+| The printer **can't read the SD card** | Eject it first (**Plot… > Save to > Eject**). **Clean card** next to it removes hidden macOS files the printer may show as junk. |
 | The **first AI writing is slow** | Normal: the model loads for about 30 seconds. After that each line takes a few seconds. |
-| The page looks **unstyled** after updating InkPrint | Restart the studio: close its Terminal window and double-click **My Handwriting.command** again. |
+| The page looks **unstyled** after updating InkPlot | Restart the studio: close its Terminal window and double-click **My Handwriting.command** again. |
 | **"can't be opened"** when double-clicking a .command file | Right-click it, choose **Open**, then **Open**. Or use System Settings > Privacy & Security > Open Anyway. |
 | The installer says **Python 3.11 is needed** | Run `brew install python@3.11` in Terminal, then double-click the installer again. |
 | An accent sits on the wrong letter, or the AI writing has a scribble | Click **Shuffle** for a new attempt, or raise **Neatness**. |
 
-To check any G-code file yourself, run this in Terminal from the InkPrint folder:
+To check any G-code file yourself, run this in Terminal from the InkPlot folder:
 
 ```bash
 handwriting-synthesis/plotcheck path/to/file.gcode
@@ -260,14 +265,21 @@ handwriting-synthesis/plotcheck path/to/file.gcode
 
 ## 12. Other printers
 
-InkPrint's limits were measured on one X1E with one holder. On another printer or holder, measure and change:
+Pick your printer under **Plotter > Machine > Printer**. Built in: Bambu Lab X1E (measured), X1 / X1 Carbon
+and P1S / P1P (copied from the X1E), A1 and A1 mini (guesses), and **Other printer** as a starting point.
+Only the X1E has been measured, so for anything else make your own profile:
 
-- **Safe area for the nozzle**: `SAFE_X` and `SAFE_Y` in `handwriting-synthesis/plotcheck.py`. Move the head
-  by hand with the holder on and note how close the pen can get to the left and front edges before the holder
-  touches anything.
-- **Bed size**: `BED_BACK` and the upper limits of `SAFE_X` / `SAFE_Y` in `plotcheck.py` (the X1E bed is 256 x 256 mm).
-- **Magnets**: size and height on the Plotter's **Machine** tab.
-- **Pen offset**: the Calibrate dialog (step 5) measures it for you.
+1. Click **New profile…**.
+2. Enter the **bed size**.
+3. Measure **where the nozzle can safely go**: home with the holder off, clip it on, then move the head slowly
+   left, then forward, with the printer's own controls, until the holder is 5 mm from touching. Enter the
+   position the printer's screen shows.
+4. Tick **I measured these on my printer** only if you did.
+5. Click **Save and use it**, then calibrate the pen (step 5).
+
+Profiles for Bambu printers turn off spaghetti detection in every file (`M981 S0 P20000`, the line Bambu
+Studio itself uses). Other printers never get Bambu commands. Extra start and end G-code may only set things
+up: moves, homing, bed levelling and heating are refused.
 
 Then do a **Pen up** and an **Outline** run of everything before plotting for real.
 
@@ -277,6 +289,6 @@ Then do a **Pen up** and an **Outline** run of everything before plotting for re
 - Turn off the printer's print monitoring before plotting.
 - Print the **Pen up** version of every new layout first, and watch it.
 - Recalibrate after moving the pen, and save your plot files again afterwards.
-- Only print files saved by InkPrint (or checked with `plotcheck`). Every file InkPrint saves has passed its
+- Only print files saved by InkPlot (or checked with `plotcheck`). Every file InkPlot saves has passed its
   checks: no homing, no arcs, the nozzle inside the safe area, the pen on the paper and clear of the magnets.
 - Stay near the printer while it plots.

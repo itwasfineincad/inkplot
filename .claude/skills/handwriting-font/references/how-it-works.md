@@ -1,4 +1,4 @@
-# How InkPrint's handwriting fonts work (for debugging or changing them)
+# How InkPlot's handwriting fonts work (for debugging or changing them)
 
 ## Files
 

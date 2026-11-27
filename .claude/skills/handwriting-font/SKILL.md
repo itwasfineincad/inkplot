@@ -1,14 +1,14 @@
 ---
 name: handwriting-font
-description: Make a single-line pen-plotter font from someone's own handwriting for InkPrint (this project's handwriting studio), and coach the person through it step by step. Use this whenever the user wants the plotter to write "in my handwriting", wants to turn a scan or photo of their writing into a font, wants to draw their letters on screen, has a Calligraphr / FontCrafter / iFontMaker / FontForge .ttf or .otf they want to plot, has a single-line SVG font (Inkscape Hershey Text, Custom Stroke Font), or asks why an ordinary handwriting font plots as double lines. Also use it when a font they made looks wrong (missing letters, broken strokes, wrong size) and needs fixing.
+description: Make a single-line pen-plotter font from someone's own handwriting for InkPlot (this project's handwriting studio), and coach the person through it step by step. Use this whenever the user wants the plotter to write "in my handwriting", wants to turn a scan or photo of their writing into a font, wants to draw their letters on screen, has a Calligraphr / FontCrafter / iFontMaker / FontForge .ttf or .otf they want to plot, has a single-line SVG font (Inkscape Hershey Text, Custom Stroke Font), or asks why an ordinary handwriting font plots as double lines. Also use it when a font they made looks wrong (missing letters, broken strokes, wrong size) and needs fixing.
 ---
 
-# Handwriting fonts for InkPrint
+# Handwriting fonts for InkPlot
 
 A pen plotter draws the *path the pen travels*. Ordinary fonts (including every handwriting font from
 Calligraphr, FontCrafter and similar sites) store the *outline* of each letter, so a plotter draws each
-stroke twice, as a hollow double line. InkPrint needs a **single-line font**: one line down the middle of
-every stroke. No mainstream tool makes a single-line font from handwriting, so InkPrint does it itself,
+stroke twice, as a hollow double line. InkPlot needs a **single-line font**: one line down the middle of
+every stroke. No mainstream tool makes a single-line font from handwriting, so InkPlot does it itself,
 three ways. All three save the same kind of font and show up in the same places.
 
 | Route | Best for | What the person does | Quality |
@@ -23,7 +23,7 @@ Read `references/how-it-works.md` only if you need to debug or change the import
 
 ## How to talk the person through it
 
-Most people who use InkPrint are not programmers.
+Most people who use InkPlot are not programmers.
 Give one step at a time, exact numbers (100% scale, 300 dpi), and say what they should see. Don't mention
 JSON, skeletons or homographies. Ask which route suits them if it isn't obvious; if they have a scanner or
 a phone and want their *real* handwriting, recommend the template. If they just want to try it, drawing on
@@ -38,7 +38,7 @@ Mac (`handwriting/fonts/` is git-ignored) and should not be shared or committed.
 2. Click **New font** and type a name, e.g. "Jo's hand".
 3. In each box, write the character so it **sits on the solid line**. Small letters (a, c, e, n, o…) reach
    the **dashed line**; tall letters and capitals go above it, tails (g, j, p, y) below.
-4. Lowercase letters have **two boxes**. Draw them a little differently: InkPrint mixes the two so repeated
+4. Lowercase letters have **two boxes**. Draw them a little differently: InkPlot mixes the two so repeated
    letters don't look stamped.
 5. ⌘Z undoes the last stroke; hover a box and click × to clear it.
 6. Click **Save font**, then type something in **Try it** to check it.

@@ -28,24 +28,33 @@ import os
 import re
 import sys
 
-# Where the holder bumps, measured on this printer by jogging with the holder on
-# (2026-11-20): the pen tip can get no closer than 10 mm to the plate's left edge
-# and 30 mm to its front edge. With the pen at nozzle + (-24.5, -37) that puts the
-# nozzle at X 34.5 / Y 67. Those measurements already include a safety margin, so
-# none is added here. These are nozzle positions, so they stay right if the pen is
-# re-clipped (the holder doesn't move on the toolhead).
-# (UMTS's generic X/P exclusion was X >= 48, Y >= 55: too loose at the front here.)
-HOLDER_MARGIN = 0.0
-SAFE_X = (10.0 + 24.5 + HOLDER_MARGIN, 256.0)    # 34.5
-SAFE_Y = (30.0 + 37.0 + HOLDER_MARGIN, 256.0)    # 67.0
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import printers  # noqa: E402
+
+# Where the nozzle may go without the pen holder hitting the frame comes from the printer profile
+# (printers.py). For the X1E it was measured by jogging with the holder on (2026-11-20): the pen tip
+# can get no closer than 10 mm to the plate's left edge and 30 mm to its front, which with the pen at
+# nozzle + (-24.5, -37) puts the nozzle at X >= 34.5, Y >= 67. Those are nozzle positions, so they
+# stay right if the pen is re-clipped (the holder doesn't move on the toolhead).
 MIN_PEN_DOWN_Z = 12.0   # used when the pen length isn't known: UMTS Stabilo draws around Z 17
 MIN_LIFT_MM = 2.0
 NOZZLE_FLOOR = 2.5      # never bring the nozzle closer than this to the bed, whatever the pen
 
 
+def limits(p=None):
+    """(SAFE_X, SAFE_Y): the nozzle's safe range in X and Y for the printer in use."""
+    p = p or printers.current()
+    return tuple(p['safe_x']), tuple(p['safe_y'])
+
+
+def bed_back(p=None):
+    """Bed Y of the back edge, where the paper's top edge sits."""
+    return float((p or printers.current())['bed'][1])
+
+
 def _saved(key, default=None):
     try:
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'calibration.json')) as f:
+        with open(os.path.join(printers.CONFIG, 'calibration.json')) as f:
             return float(json.load(f)[key])
     except (OSError, ValueError, KeyError, TypeError):
         return default
@@ -69,7 +78,9 @@ MOVE = re.compile(r'^G([0-3])\b(.*)')
 AXIS = re.compile(r'([XYZ])(-?\d*\.?\d+)')
 
 
-def check(lines):
+def check(lines, profile=None):
+    prof = profile or printers.current()
+    SAFE_X, SAFE_Y = limits(prof)
     errors, x, y, z = [], None, None, None
     pen_down_z, lift_z, gaps = set(), set(), []
     out_of_area = []
@@ -88,6 +99,9 @@ def check(lines):
             continue
         m = MOVE.match(line)
         if not m:
+            why = printers.command_problem(line, prof['maker'])
+            if why:
+                errors.append('line {}: {}'.format(n, why))
             continue
         if m.group(1) in '23':
             errors.append('line {}: arc move. Untick "Use G2/G3 arc moves" in BambuPlot\'s Pen tab.'.format(n))
@@ -157,14 +171,13 @@ def check(lines):
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-BED_BACK = 256.0          # the paper's top edge sits against the back of the bed, its left edge at X 0
 DRAW_MARGIN = 2.0         # keep drawing at least this far from a magnet
 TRAVEL_MARGIN = 4.0       # treat travel moves this close to a magnet as passing over it
 
 
 def _load(name):
     try:
-        with open(os.path.join(HERE, name)) as f:
+        with open(os.path.join(printers.CONFIG, name)) as f:
             return json.load(f)
     except (OSError, ValueError):
         return None
@@ -202,7 +215,8 @@ def on_paper(lines, shift=None):
         return []
     z_down = min(zs)
     shift = paper_shift(lines) if shift is None else shift
-    width, bottom = magnets.PAPER_W, magnets.ON_BED - shift  # below the bed's front edge the sheet hangs in the air
+    back = bed_back()
+    width, bottom = magnets.PAPER_W, magnets.on_bed() - shift  # below the bed's front edge the sheet hangs in the air
     over = dict(left=0.0, right=0.0, top=0.0, bottom=0.0)
     x = y = z = None
     for raw in lines:
@@ -218,7 +232,7 @@ def on_paper(lines, shift=None):
             for bx, by in ((x, y), (nx, ny)):
                 if bx is None:
                     continue
-                px, py = bx + ox, BED_BACK - shift - (by + oy)  # pen position on the paper
+                px, py = bx + ox, back - shift - (by + oy)  # pen position on the paper
                 over['left'] = max(over['left'], -px)
                 over['right'] = max(over['right'], px - width)
                 over['top'] = max(over['top'], -py)
@@ -254,9 +268,10 @@ def avoid_magnets(lines, shift=None):
     if height <= 0:
         return lines, 0, [], 'magnet zones off'
     S = surface()                             # magnets sit on the paper, whose top is S above the bed
+    back = bed_back()
 
     def paper(bx, by):                        # bed position -> position on the paper
-        return bx, BED_BACK - shift - by
+        return bx, back - shift - by
 
     def zone_hits(nx0, ny0, nx1, ny1, parts, margin):
         """Zones touched while the nozzle moves (nx0,ny0)->(nx1,ny1); parts: 1 = pen tip, 0 = nozzle,
@@ -343,6 +358,82 @@ def avoid_magnets(lines, shift=None):
     return out, hops, errors, '4 corner zones of {:.0f} mm, {:.0f} mm tall'.format(mag['size'], height)
 
 
+# the setup a file was made for ---------------------------------------------------------------
+# Every file the studio or ./calibrate writes carries one line like
+#   ; inkplot setup: printer=bambu-x1e pen=10 pad=0.5 offset=-24.5,-37
+# Its heights and positions are only right for that printer, pen length, pad and pen offset, so a
+# file whose stamp doesn't match the setup saved now is refused (save it again instead).
+STAMP = re.compile(r'^;\s*ink(?:plot|print) setup:\s*(.*)$', re.I)
+
+
+def _calibration():
+    return _load('calibration.json') or {}
+
+
+def stamp_line(with_offset=True, profile=None, cal=None):
+    """The stamp for a file made now. with_offset=False for files that don't depend on the pen offset."""
+    p = profile or printers.current()
+    c = _calibration() if cal is None else cal
+    parts = ['printer=' + p['id']]
+    if c.get('pen') is not None:
+        parts.append('pen={:g}'.format(round(float(c['pen']), 2)))
+    parts.append('pad={:g}'.format(round(float(c.get('surface', 0.0) or 0.0), 2)))
+    if with_offset and 'offset_x' in c and 'offset_y' in c:
+        parts.append('offset={:g},{:g}'.format(round(float(c['offset_x']), 2), round(float(c['offset_y']), 2)))
+    return '; inkplot setup: ' + ' '.join(parts)
+
+
+def read_stamp(lines):
+    """The setup a file says it was made for, as a dict (printer, pen, pad, offset), or None if it has no stamp."""
+    for raw in lines[:80]:
+        m = STAMP.match(raw.strip())
+        if not m:
+            continue
+        out = {}
+        for k, v in re.findall(r'(\w+)=(\S+)', m.group(1)):
+            try:
+                if k == 'printer':
+                    out[k] = v
+                elif k == 'offset':
+                    a, b = v.split(',')
+                    out[k] = (float(a), float(b))
+                elif k in ('pen', 'pad'):
+                    out[k] = float(v)
+            except ValueError:
+                pass
+        return out
+    return None
+
+
+def stamp_problems(lines, profile=None, cal=None):
+    """
+    (problems, stamped): why this file doesn't match the printer, pen, pad and offset saved now.
+    A file without a stamp gives no problems and stamped=False (it can't be told either way).
+    """
+    st = read_stamp(lines)
+    if st is None:
+        return [], False
+    p = profile or printers.current()
+    c = _calibration() if cal is None else cal
+    out = []
+    if 'printer' in st and st['printer'] != p['id']:
+        made = printers.get(st['printer'])
+        out.append('it was made for the printer profile "{}", but "{}" is chosen now.'.format(
+            made['name'] if made else st['printer'], p['name']))
+    if 'pen' in st and c.get('pen') is not None and abs(st['pen'] - float(c['pen'])) > 0.01:
+        out.append('it was made for the pen sticking out {:g} mm below the nozzle; it is set to {:g} mm now.'.format(
+            st['pen'], float(c['pen'])))
+    pad = float(c.get('surface', 0.0) or 0.0)
+    if 'pad' in st and abs(st['pad'] - pad) > 0.01:
+        out.append('it was made for a {:g} mm pad under the paper; the pad is set to {:g} mm now.'.format(st['pad'], pad))
+    if 'offset' in st and 'offset_x' in c and 'offset_y' in c:
+        ox, oy = float(c['offset_x']), float(c['offset_y'])
+        if abs(st['offset'][0] - ox) > 0.01 or abs(st['offset'][1] - oy) > 0.01:
+            out.append('it was made for the pen offset X {:g} Y {:g}; the offset is X {:g} Y {:g} now.'.format(
+                st['offset'][0], st['offset'][1], round(ox, 2), round(oy, 2)))
+    return out, True
+
+
 DRY_LIFT = 10.0
 
 
@@ -365,20 +456,28 @@ def main():
         lines.pop()
         removed += 1
 
-    errors, info = check(lines)
+    prof = printers.current()
+    mismatch, stamped = stamp_problems(lines, prof)
+    if mismatch:
+        print('NOT SAFE for this setup - nothing written:\n')
+        for e in mismatch:
+            print('  - ' + e)
+        print('\nSave the file again from the Plotter (or ./calibrate) so it matches the setup saved now.')
+        sys.exit(1)
+    errors, info = check(lines, prof)
     if not errors:
         errors += on_paper(lines)
         lines, hops, mag_errors, mag_note = avoid_magnets(lines)
         errors += mag_errors
     if errors:
-        print('NOT SAFE for X1E + UMTS - nothing written:\n')
+        print('NOT SAFE for {} - nothing written:\n'.format(prof['name']))
         for e in errors:
             print('  - ' + e)
         sys.exit(1)
 
     stem, ext = os.path.splitext(src)
     dst = stem + '_safe' + (ext or '.gcode')
-    lines.append('; plotcheck: checked for X1E + UMTS; ends here with the pen lifted - remove the holder now')
+    lines.append('; plotcheck: checked for {}; ends here with the pen lifted - remove the holder now'.format(prof['name']))
     with open(dst, 'w') as f:
         f.write('\n'.join(lines) + '\n')
 
@@ -389,6 +488,12 @@ def main():
     else:
         print('  the pen never goes down (travel only)')
     print('  nozzle stays within X {:.1f}-{:.1f}, Y {:.1f}-{:.1f}'.format(*[b[0], b[2], b[1], b[3]]))
+    print('  printer: {}{}'.format(prof['name'], '' if prof['measured'] else ' (safe area not measured: rehearse pen-up first)'))
+    if stamped:
+        print('  made for the pen, pad and offset saved now')
+    else:
+        print('  warning: no "inkplot setup" line, so plotcheck can\'t tell which pen, pad and offset this file was '
+              'made for. Files from the Plotter have one; save it again from there to be sure.')
     if removed:
         print('  removed the final move to the front-left corner')
     for w in info.get('warnings', []):

@@ -44,14 +44,14 @@ sys.path.insert(0, SYN)
 import calibrate  # noqa: E402
 import magnets  # noqa: E402
 import plotcheck  # noqa: E402
+import printers  # noqa: E402
 import svgplot  # noqa: E402
 
-BED = plotcheck.BED_BACK            # 256: the paper's top edge is at the back of the bed
 PAPER_W, PAPER_H = magnets.PAPER_W, 297.0
 CLIP_EXTRA = 0.5                    # trim this much further inside the limits than plotcheck insists on
 SIMPLIFY_MM = 0.05                  # drop points closer together than this
 STATE = os.environ.get('PLOTTER_STATE') or os.path.join(HERE, 'plot_state.json')
-PLOTS = os.path.join(HERE, 'out', 'plots')
+PLOTS = os.environ.get('INKPLOT_PLOTS') or os.path.join(HERE, 'out', 'plots')     # INKPLOT_PLOTS: another folder (tests)
 THUMBS = os.path.join(HERE, 'cache', 'thumbs')
 UPLOADS = os.path.join(HERE, 'uploads')
 BLUEPRINTS = os.path.normpath(os.path.join(HERE, '..', 'blueprints'))
@@ -146,6 +146,9 @@ def machine(s=None, paper=(PAPER_W, PAPER_H), two_pass=True, shift=(0.0, 0.0)):
     shift = (float(shift[0]), float(shift[1]))
     c = calibrate.recall()
     mag = magnets.load()
+    prof = printers.current()
+    BED = plotcheck.bed_back(prof)
+    SAFE_X, SAFE_Y = plotcheck.limits(prof)
     P = c.get('pen')
     S = float(c.get('surface', 0.0) or 0.0)
     has_offset = 'offset_x' in c and 'offset_y' in c
@@ -153,9 +156,18 @@ def machine(s=None, paper=(PAPER_W, PAPER_H), two_pass=True, shift=(0.0, 0.0)):
     m = dict(calibrated=bool(has_offset and P is not None), has_offset=has_offset, pen=P, surface=S,
              offset_x=ox, offset_y=oy, check=c.get('check'), magnet_size=mag['size'], magnet_height=mag['height'],
              magnet_diameter=mag.get('diameter', 10.0),
-             paper=[W, H], two_pass=bool(two_pass), shift=list(shift), bed_front=BED - shift[0], bed=BED, keepout=[plotcheck.SAFE_X[0], plotcheck.SAFE_Y[0]],
-             cal_nozzle=[calibrate.CAL_X, calibrate.CAL_Y])
+             paper=[W, H], two_pass=bool(two_pass), shift=list(shift), bed_front=BED - shift[0], bed=BED,
+             bed_w=float(prof['bed'][0]), bed_d=BED, keepout=[SAFE_X[0], SAFE_Y[0]], safe_x=list(SAFE_X), safe_y=list(SAFE_Y),
+             cal_nozzle=list(calibrate.cal_point(prof)),
+             printer=dict(id=prof['id'], name=prof['name'], maker=prof['maker'], measured=prof['measured'],
+                          note=prof.get('note', ''), builtin=prof.get('builtin', False)))
     problems = []
+    cal_on = c.get('printer') or printers.DEFAULT     # calibrations from before profiles were made on the X1E
+    if has_offset and cal_on and cal_on != prof['id']:
+        was = printers.get(cal_on)
+        problems.append('The pen was calibrated for "{}". Calibrate again for "{}" (Machine > Calibrate…), '
+                        'or switch back.'.format(was['name'] if was else cal_on, prof['name']))
+        m['calibrated'] = False
     if P is None:
         problems.append('Enter how far the pen sticks out below the nozzle (Pen card).')
     if not has_offset:
@@ -201,9 +213,11 @@ def _limits(m, mag, W, H, d):
     """
     ox, oy = m['offset_x'], m['offset_y']
     e = CLIP_EXTRA
+    BED = m['bed_d']
+    (sx0, sx1), (sy0, sy1) = m['safe_x'], m['safe_y']
     # inside the holder keep-out, and on the part of the sheet that lies on the bed
-    reach = [max(0.0, plotcheck.SAFE_X[0] + ox) + e, max(0.0, BED - d - (plotcheck.SAFE_Y[1] + oy)) + e,
-             min(PAPER_W, W, plotcheck.SAFE_X[1] + ox) - e, min(BED - d, H, BED - d - (plotcheck.SAFE_Y[0] + oy)) - e]
+    reach = [max(0.0, sx0 + ox) + e, max(0.0, BED - d - (sy1 + oy)) + e,
+             min(PAPER_W, W, sx1 + ox) - e, min(BED - d, H, BED - d - (sy0 + oy)) - e]
     reach = [round(v, 2) for v in reach]
     zones = magnets.zones(mag, d) if mag['height'] > 0 else []
     banned = []
@@ -794,7 +808,7 @@ PART_NAMES = dict(a='part 1', b='part 2 (sheet turned round)')
 def _key(state):
     c = calibrate.recall()
     blob = json.dumps([state.get('items', []), settings(state.get('settings')), paper_of(state), two_pass_of(state),
-                       shift_of(state), c, magnets.load()], sort_keys=True)
+                       shift_of(state), c, magnets.load(), printers.current()], sort_keys=True)
     return hashlib.sha1(blob.encode('utf-8')).hexdigest()
 
 
@@ -925,7 +939,7 @@ def public(res, with_strokes=False, with_travel=False):
 # G-code -----------------------------------------------------------------------
 def nozzle_xy(p, mach, d=0.0):
     """Pen position (sheet coordinates of the sheet as it lies, top edge d mm in front of the back of the bed) -> nozzle bed coordinates."""
-    return p[:, 0] - mach['offset_x'], (BED - d - p[:, 1]) - mach['offset_y']
+    return p[:, 0] - mach['offset_x'], (mach['bed_d'] - d - p[:, 1]) - mach['offset_y']
 
 
 def gcode(strokes, mach, s, part='a'):
@@ -934,14 +948,16 @@ def gcode(strokes, mach, s, part='a'):
     if part == 'b':
         strokes = [flip(p, W, H) for p in strokes]
     zf, tf, df = s['z_speed'], s['travel_speed'], s['draw_speed']
-    g = ['; Made by the Plotter in the handwriting studio for an X1E with the UMTS pen holder.',
+    prof = printers.current()
+    g = ['; Made by the InkPlot Plotter for {} with a pen holder.'.format(prof['name']),
+         plotcheck.stamp_line(),
          '; Pen offset X{:.2f} Y{:.2f} (pen = nozzle + offset), pen {:g} mm below the nozzle, {:g} mm pad.'.format(
              mach['offset_x'], mach['offset_y'], mach['pen'], mach['surface']),
          '; Pen down Z{:.2f}, up Z{:.2f}. Paper: A4 portrait, left edge against the left side of the bed{}.'.format(
              mach['z_draw'], mach['z_lift'], ', TURNED ROUND (top edge at the front)' if part == 'b' else ''),
          '; paper shift: {:g} mm (the sheet\'s top edge is {:g} mm in front of the back edge of the bed, its left edge against the left side)'.format(d, d),
          '; Home from the printer screen BEFORE clipping on the holder. Never home with it attached.',
-         'G90', 'G21',
+         'G90', 'G21'] + printers.start_lines(prof) + [
          'G1 Z{:.3f} F{:.0f} ; high enough to clear the magnets'.format(mach['z_start'], zf), 'G4 P120']
     for p in strokes:
         X, Y = nozzle_xy(p, mach, d)
@@ -952,7 +968,7 @@ def gcode(strokes, mach, s, part='a'):
         g.extend('G1 X{:.3f} Y{:.3f} F{:.0f}'.format(x, y, df) for x, y in zip(X[1:], Y[1:]))
         g.append('G1 Z{:.3f} F{:.0f}'.format(mach['z_lift'], zf))
     g.append('G1 Z{:.3f} F{:.0f}'.format(mach['z_lift'] + 10, zf))
-    return g
+    return g + printers.end_lines(prof)
 
 
 def checked(state):
@@ -980,8 +996,8 @@ def checked(state):
                 lines, hops, mag_errors, _ = plotcheck.avoid_magnets(lines, d)
                 errs += mag_errors
             if not errs:
-                lines.append('; plotcheck: checked for X1E + UMTS by the Plotter; ends here with the pen lifted - '
-                             'remove the holder before homing')
+                lines.append('; plotcheck: checked for {} by the Plotter; ends here with the pen lifted - '
+                             'remove the holder before homing'.format(mach['printer']['name']))
             seconds = res['stats']['parts'][k]['seconds']
             if hops and mach.get('z_hop'):
                 seconds += hops*2*(mach['z_hop'] - mach['z_lift'])/(s['z_speed']/60)
@@ -1019,13 +1035,13 @@ def outline(res, part='a'):
     d = mach['shift'][1 if part == 'b' else 0]
     X, Y = nozzle_xy(box, mach, d)
     z = max(mach['z_start'], mach['z_lift'] + 3)
-    g = ['; Outline trace: the pen stays up and slowly goes round the drawing',
+    g = ['; Outline trace: the pen stays up and slowly goes round the drawing', plotcheck.stamp_line(),
          '; paper shift: {:g} mm'.format(d),
          '; Home from the printer screen BEFORE clipping on the holder. Never home with it attached.',
-         'G90', 'G21', 'G1 Z{:.3f} F{:.0f}'.format(z, s['z_speed']), 'G4 P300']
+         'G90', 'G21'] + printers.start_lines() + ['G1 Z{:.3f} F{:.0f}'.format(z, s['z_speed']), 'G4 P300']
     for x, y in zip(X, Y):
         g += ['G0 X{:.3f} Y{:.3f} F3000'.format(x, y), 'G4 P1200']
-    g += ['G1 Z{:.3f} F{:.0f}'.format(z + 10, s['z_speed']), '; done - remove the holder before homing']
+    g += ['G1 Z{:.3f} F{:.0f}'.format(z + 10, s['z_speed'])] + printers.end_lines() + ['; done - remove the holder before homing']
     return g
 
 
@@ -1430,6 +1446,47 @@ def clean_card(dest, really=False):
     return info
 
 
+def card_files(dest):
+    """
+    Every G-code file in the chosen folder or card, and whether it still matches the printer, pen, pad and
+    offset saved now: [dict(file, ok, stamped, problems)]. Out-of-date files must be saved again.
+    """
+    folder = _dest_dir(dest)
+    out = []
+    for name in sorted(os.listdir(folder)):
+        if not name.lower().endswith('.gcode') or name.startswith('.'):
+            continue
+        try:
+            with open(os.path.join(folder, name), errors='replace') as f:
+                head = [next(f, '') for _ in range(80)]
+        except OSError:
+            continue
+        problems, stamped = plotcheck.stamp_problems(head)
+        out.append(dict(file=name, ok=stamped and not problems, stamped=stamped, problems=problems))
+    return dict(folder=folder, files=out, old=sum(1 for f in out if not f['ok']))
+
+
+def printer_list():
+    cur = printers.current()['id']
+    return dict(current=cur, profiles=printers.all_profiles())
+
+
+def printer_action(req):
+    """Choose, save or delete a printer profile from the Machine tab."""
+    act = req.get('action')
+    if act == 'use':
+        printers.use(req.get('id'))
+    elif act == 'save':
+        p = printers.save(req.get('profile') or {})
+        if req.get('use', True):
+            printers.use(p['id'])
+    elif act == 'delete':
+        printers.delete(req.get('id'))
+    elif act != 'list':
+        raise ValueError('Unknown printer action')
+    return printer_list()
+
+
 def _remove(p):
     """Delete a file or folder. macOS deletes a "._" twin by itself when its file goes, so missing files are fine."""
     for _ in range(3):
@@ -1482,6 +1539,9 @@ def export(state, kind, dest, part='a', suffix='', title=None):
         lines, fname = head + outline(plan(state), part), name + '_outline.gcode'
     else:
         raise ValueError('Unknown file type ' + str(kind))
+    mismatch, _ = plotcheck.stamp_problems(lines)
+    if mismatch:
+        raise ValueError('The setup changed while saving:\n- ' + '\n- '.join(mismatch))
     if kind != 'plot':
         errs, _ = plotcheck.check(lines)
         if errs:
@@ -1539,7 +1599,8 @@ def calibration_file(step, dest, s=None, a=None, b=None):
         # bring the paper up to exactly where the pen tip belongs, under the pen, and wait while the pen is set
         P, S = mach['pen'], mach['surface']
         touch = S + P
-        x, y = calibrate.CAL_X, calibrate.CAL_Y
+        x, y = calibrate.cal_point()
+        BED = mach['bed_d']
         where = ''
         if mach['has_offset']:
             where = ' The pen tip is over the paper about {:.0f} mm from the left edge and {:.0f} mm from the top.'.format(
@@ -1550,29 +1611,31 @@ def calibration_file(step, dest, s=None, a=None, b=None):
                  '; 2. Clip the holder on with the pen pulled UP: it must stick out less than {:g} mm.'.format(P),
                  '; 3. Print this. While it waits, loosen the pen, slide it down until the tip just touches the paper, tighten it.',
                  '; 4. After 4 minutes the bed drops {:g} mm and it ends.'.format(10),
-                 'G90', 'G21',
+                 plotcheck.stamp_line(with_offset=False),
+                 'G90', 'G21'] + printers.start_lines() + [
                  'G1 Z{:.3f} F600 ; well clear first'.format(max(30.0, touch + 15)),
                  'G0 X{:.3f} Y{:.3f} F3000 ; pen over the middle of the sheet, away from the magnets'.format(x, y),
                  'G1 Z{:.3f} F600'.format(touch + 5),
                  'G1 Z{:.3f} F120 ; slowly: the paper is now {:g} mm below the nozzle tip'.format(touch, P),
                  'M400'] + ['G4 P60000 ; waiting while you set the pen'] * 4 + [
-                 'G1 Z{:.3f} F600 ; done - the paper moves away from the pen'.format(touch + 10)]
+                 'G1 Z{:.3f} F600 ; done - the paper moves away from the pen'.format(touch + 10)] + printers.end_lines()
         fname = 'set_pen_height.gcode'
         info = dict(touch=touch)
     elif step == 'check':
         if not mach['has_offset']:
             raise ValueError('Do the calibration cross first.')
-        ox, oy, (ca, cb), nozzle = calibrate.from_measurement(calibrate.CAL_X + mach['offset_x'],
-                                                              BED - calibrate.CAL_Y - mach['offset_y'])
+        cx, cy = calibrate.cal_point()
+        ox, oy, (ca, cb), nozzle = calibrate.from_measurement(cx + mach['offset_x'],
+                                                              mach['bed_d'] - cy - mach['offset_y'])
         lines = calibrate.gcode(nozzle, 'Check cross: should land {} mm from the left edge, {} mm from the top edge'
-                                .format(ca, cb), zd, zl)
+                                .format(ca, cb), zd, zl, with_offset=True)
         calibrate.remember(check=[ca, cb])
         fname = 'calibration_check.gcode'
         info = dict(check=[ca, cb])
     elif step in ('cross', 'cross_air'):
         lift = 15.0 if step == 'cross_air' else 0.0
-        lines = calibrate.gcode(calibrate.cross(calibrate.CAL_X, calibrate.CAL_Y),
-                                'Calibration cross: nozzle at X{:.0f} Y{:.0f}'.format(calibrate.CAL_X, calibrate.CAL_Y),
+        cx, cy = calibrate.cal_point()
+        lines = calibrate.gcode(calibrate.cross(cx, cy), 'Calibration cross: nozzle at X{:.0f} Y{:.0f}'.format(cx, cy),
                                 zd + lift, zl + lift)
         fname = 'calibration_cross{}.gcode'.format('_air' if lift else '')
         info = {}
@@ -1581,8 +1644,10 @@ def calibration_file(step, dest, s=None, a=None, b=None):
         if not (0 < a < PAPER_W and 0 < b < PAPER_H):
             raise ValueError('Those numbers are off the sheet: measure in mm from the paper\'s left and top edges.')
         ox, oy, (ca, cb), nozzle = calibrate.from_measurement(a, b)
+        new = dict(calibrate.recall(), offset_x=ox, offset_y=oy)
         lines = calibrate.gcode(nozzle, 'Check cross: should land {} mm from the left edge, {} mm from the top edge'
                                 .format(ca, cb), zd, zl)
+        lines[1] = plotcheck.stamp_line(cal=new)          # stamped with the offset it is about to save
         errs, _ = plotcheck.check(lines)
         if errs:
             raise ValueError('The check cross failed its safety check:\n- ' + '\n- '.join(errs))

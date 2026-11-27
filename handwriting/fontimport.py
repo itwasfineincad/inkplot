@@ -1,5 +1,5 @@
 """
-Make a single-line pen font from someone's handwriting, for InkPrint.
+Make a single-line pen font from someone's handwriting, for InkPlot.
 
 A pen plotter needs every letter as the line the pen travels (a "single-line"
 or "stroke" font), not the outline of the letter that ordinary fonts store.
@@ -40,7 +40,7 @@ import time
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FONTS = os.environ.get('INKPRINT_FONTS') or os.path.join(HERE, 'fonts')     # INKPRINT_FONTS: a separate folder for tests
+FONTS = os.environ.get('INKPLOT_FONTS') or os.path.join(HERE, 'fonts')     # INKPLOT_FONTS: a separate folder for tests
 
 # ---------------------------------------------------------------- template
 PAGE_W, PAGE_H = 210.0, 297.0
@@ -78,7 +78,7 @@ def make_template(path):
     guide, label, edge = '#8db8f0', '#b4b4b4', '#d0d0d0'      # light: the scan reader ignores them
     for x, y in MARKS:
         ax.add_patch(Rectangle((x - MARK/2, y - MARK/2), MARK, MARK, color='black', lw=0))
-    ax.text(PAGE_W/2, 15.5, 'InkPrint handwriting template', ha='center', va='center', fontsize=11, color='#888888')
+    ax.text(PAGE_W/2, 15.5, 'InkPlot handwriting template', ha='center', va='center', fontsize=11, color='#888888')
     ax.text(PAGE_W/2, 21.5, 'Write each character in its box with a dark pen, sitting on the solid line; small letters reach '
             'the dashed line. Lowercase twice.', ha='center', va='center', fontsize=6.3, color='#999999')
     ax.text(PAGE_W/2, 26, 'Print at 100% (no "fit to page"). Scan or photograph the whole page, flat, with all four black squares.',
