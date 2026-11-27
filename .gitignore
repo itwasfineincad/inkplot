@@ -14,6 +14,8 @@ handwriting/cache/
 # your Write page text and settings
 handwriting/ui_settings.json
 handwriting/styles.json
+# the Get started guide's progress
+handwriting/setup.json
 handwriting/fonts/
 # your sheets and print jobs
 handwriting/plot_state.json

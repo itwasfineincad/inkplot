@@ -217,10 +217,15 @@ if [ "$OS" = Linux ]; then
 Type=Application
 Name=InkPlot
 Comment=Handwriting for a pen plotter
-Exec="$ROOT/inkplot"
+Exec="$ROOT/inkplot" start
 Icon=$ROOT/handwriting/static/icon.svg
-Terminal=true
+Terminal=false
 Categories=Graphics;
+Actions=stop;
+
+[Desktop Action stop]
+Name=Stop InkPlot
+Exec="$ROOT/inkplot" stop
 EOF
   ok "InkPlot in your app menu"
 fi
@@ -240,6 +245,7 @@ else
 fi
 printf '  %sThen%s        Plotter %s Machine: choose your printer and calibrate the pen\n' "$B" "$R" "$DOT"
 printf '  %sGuide%s       https://github.com/itwasfineincad/inkplot/blob/main/docs/GUIDE.md\n' "$B" "$R"
+printf '  %sBackground%s  %s%s start%s runs it with no window to keep open; %s%s stop%s stops it\n' "$B" "$R" "$B" "$CMD" "$R" "$B" "$CMD" "$R"
 printf '  %sLater%s       run the install line again to update or remove InkPlot\n' "$B" "$R"
 if [ "$OS" = Linux ]; then
   has tesseract || printf '\n  %s%s Optional: sudo apt install tesseract-ocr for better AI handwriting%s\n' "$D" "$DOT" "$R"

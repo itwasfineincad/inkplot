@@ -89,6 +89,17 @@ Rather download it yourself? Click **Code > Download ZIP** on the
 A Terminal window opens (leave it open: it *is* the studio) and your browser opens **http://127.0.0.1:8765**.
 To stop the studio, close that window or press Ctrl+C.
 
+**Run it in the background** instead, with no window to keep open:
+
+```bash
+inkplot start
+```
+
+It opens the browser and leaves the studio running after you close Terminal. `inkplot status` says whether it's
+running and where, `inkplot open` opens it in the browser again, and `inkplot stop` stops it. On Linux the app menu
+entry starts it this way; right-click the icon for **Stop InkPlot**. On a Mac, if `inkplot` isn't found, use
+`~/InkPlot/inkplot start`.
+
 > **"My Handwriting.command" can't be opened** (or "Apple could not verify…")? macOS asks this the first time.
 > Right-click it, choose **Open**, then **Open** again. On newer macOS: **System Settings > Privacy & Security**,
 > scroll down, and click **Open Anyway**.
@@ -269,7 +280,8 @@ broken strokes or letters at the wrong size. The skill is in `.claude/skills/han
 | A **red message** on the Print tab | It says what's wrong, e.g. something in the red area or over a magnet. Move or shrink that item. Files are only saved once the check passes. |
 | The printer **can't read the SD card** | Eject it first (**Plot… > Save to > Eject**). **Clean card** next to it removes hidden macOS files the printer may show as junk. |
 | The **first AI writing is slow** | Normal: the model loads for about 30 seconds. After that each line takes a few seconds. |
-| The page looks **unstyled**, or something new is missing, after updating | Restart the studio: close its Terminal window and start it again. |
+| The page looks **unstyled**, or something new is missing, after updating | Restart the studio: close its Terminal window and start it again, or run `inkplot restart` if it runs in the background. |
+| **`inkplot start`** says it didn't start | It shows the last lines of its log; `inkplot log` shows more. Often another copy is already running: try `inkplot stop` first. |
 | The AI writing doesn't start | It waits for you: press **Write it now**. **Stop** halts it after the line it's on. |
 | **"can't be opened"** when double-clicking a .command file (Mac) | Right-click it, choose **Open**, then **Open**. Or use System Settings > Privacy & Security > Open Anyway. |
 | The installer says **'patch' or 'git' is needed** (Linux) | Run `sudo apt install patch`, then run the install line again. |

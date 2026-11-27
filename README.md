@@ -17,7 +17,8 @@ It puts InkPlot in `~/InkPlot` and fetches Python 3.11 if you don't have it. Run
 or remove it.
 
 To start it, double-click `handwriting/My Handwriting.command` on a Mac, or pick InkPlot in the app menu on
-Linux (or run `inkplot`). It opens in your browser. Before your first plot, choose your printer and calibrate the
+Linux (or run `inkplot`). It opens in your browser. To keep it running without a window open, use
+`inkplot start`, and `inkplot stop` when you're done. Before your first plot, choose your printer and calibrate the
 pen under Plotter > Machine, then use Plot… and do a pen-up run first. The [guide](docs/GUIDE.md) walks through
 every step.
 

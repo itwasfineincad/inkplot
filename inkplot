@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
-# Start InkPlot (macOS and Linux): the studio opens in your web browser.
-# Close this window, or press Ctrl+C, to stop it.
+# InkPlot's command (macOS and Linux).
+#
+#   inkplot           run the studio here: it opens in your browser; close the window or press Ctrl+C to stop it
+#   inkplot start     run it in the background (no window to keep open) and open the browser
+#   inkplot stop      stop the one running in the background
+#   inkplot status    is it running, and where
+#   inkplot open      open it in the browser again
+#   inkplot restart   stop it and start it again (after an update)
+#   inkplot log       show what it has printed
 set -e
 SRC="$0"
 while [ -L "$SRC" ]; do                      # follow the ~/.local/bin/inkplot link back to this folder
@@ -9,10 +16,101 @@ while [ -L "$SRC" ]; do                      # follow the ~/.local/bin/inkplot l
 done
 ROOT="$(cd "$(dirname "$SRC")" && pwd)"
 PY="${INKPLOT_VENV:-$HOME/.venvs/handwriting-synthesis}/bin/python"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/inkplot"
+PIDFILE="$STATE/inkplot.pid"
+LOG="$STATE/inkplot.log"
+NOISE="WARNING|Instructions for updating|deprecat|LSTMCell|non-resource|^\s*$|^  "
+export TF_CPP_MIN_LOG_LEVEL=3
+
 if [ ! -x "$PY" ]; then
   echo "InkPlot isn't installed yet. Run:  $ROOT/setup/install.sh"
   exit 1
 fi
-export TF_CPP_MIN_LOG_LEVEL=3
-cd "$ROOT/handwriting"
-exec "$PY" handwriting_ui.py "$@" 2> >(grep -v -E "WARNING|Instructions for updating|deprecat|LSTMCell|non-resource|^\s*$|^  " >&2)
+
+running() {   # the background studio's process id, if it is still running
+  local pid
+  [ -f "$PIDFILE" ] || return 1
+  pid="$(cat "$PIDFILE" 2>/dev/null)"
+  [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null || return 1
+  if [ -r "/proc/$pid/cmdline" ]; then           # Linux (works without ps)
+    tr '\0' ' ' < "/proc/$pid/cmdline" | grep -q handwriting_ui.py || return 1
+  else
+    ps -p "$pid" -o command= 2>/dev/null | grep -q handwriting_ui.py || return 1
+  fi
+  echo "$pid"
+}
+url() { grep -o 'http://127\.0\.0\.1:[0-9]*/' "$LOG" 2>/dev/null | tail -1; }
+browse() {
+  [ -n "${INKPLOT_NO_BROWSER:-}" ] && return 0      # for tests
+  if [ "$(uname -s)" = Darwin ]; then open "$1"; else xdg-open "$1" >/dev/null 2>&1 || echo "Open $1 in your browser."; fi
+}
+
+case "${1:-}" in
+  start|--background|-b|bg)
+    shift
+    if pid="$(running)"; then
+      echo "InkPlot is already running at $(url) (process $pid)."
+      browse "$(url)"
+      exit 0
+    fi
+    mkdir -p "$STATE"
+    : > "$LOG"
+    cd "$ROOT/handwriting"
+    # its own session, so closing the terminal doesn't stop it; output goes to the log
+    PYTHONUNBUFFERED=1 nohup "$PY" handwriting_ui.py --no-browser "$@" >>"$LOG" 2>&1 </dev/null &
+    echo $! > "$PIDFILE"
+    for _ in $(seq 1 100); do
+      [ -n "$(url)" ] && break
+      kill -0 "$(cat "$PIDFILE")" 2>/dev/null || break
+      sleep 0.2
+    done
+    if [ -z "$(url)" ]; then
+      echo "InkPlot didn't start. The last lines of its log ($LOG):"
+      grep -v -E "$NOISE" "$LOG" | tail -n 15
+      rm -f "$PIDFILE"
+      exit 1
+    fi
+    echo "InkPlot is running in the background at $(url)"
+    echo "Stop it with:  inkplot stop"
+    browse "$(url)"
+    ;;
+  stop)
+    if pid="$(running)"; then
+      kill "$pid"
+      for _ in $(seq 1 25); do kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
+      kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+      rm -f "$PIDFILE"
+      echo "InkPlot has stopped."
+    else
+      rm -f "$PIDFILE"
+      echo "InkPlot isn't running in the background."
+    fi
+    ;;
+  restart)
+    "$SRC" stop >/dev/null
+    exec "$SRC" start
+    ;;
+  status)
+    if pid="$(running)"; then echo "InkPlot is running at $(url) (process $pid)."
+    else echo "InkPlot isn't running in the background."; exit 1; fi
+    ;;
+  open)
+    if running >/dev/null; then browse "$(url)"
+    else echo "InkPlot isn't running in the background. Start it with:  inkplot start"; exit 1; fi
+    ;;
+  log)
+    [ -f "$LOG" ] && grep -v -E "$NOISE" "$LOG" | tail -n 40 || echo "No log yet."
+    ;;
+  -h|--help|help)
+    sed -n '2,10p' "$SRC" | sed 's/^# \{0,1\}//'
+    ;;
+  ""|--*)
+    # run here, in this window
+    cd "$ROOT/handwriting"
+    exec "$PY" handwriting_ui.py "$@" 2> >(grep -v -E "$NOISE" >&2)
+    ;;
+  *)
+    echo "Unknown command: $1. Try: inkplot start, inkplot stop, inkplot status (or inkplot help)."
+    exit 2
+    ;;
+esac

@@ -225,3 +225,36 @@ dialog .lead { font-size: 16px; line-height: 24px; margin: 0 0 16px; max-width: 
   *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
   button:hover, button:active, a.btn:hover, a.btn:active { transform: none !important; }
 }
+
+/* Get started guide (static/onboarding.js) ---------------------------------- */
+dialog.onb { width: 880px; padding: 0; }
+.onb__grid { display: grid; grid-template-columns: 232px 1fr; min-height: 520px; }
+.onb__steps { background: var(--surface); padding: 24px 16px; border-right: 1px solid var(--line); }
+.onb__kicker { font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 8px 12px; }
+.onb__steps ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.onb__steps li button { width: 100%; justify-content: flex-start; gap: 12px; height: 40px; padding: 0 8px; background: transparent; color: var(--muted); font-weight: 500; }
+.onb__steps li button:hover { background: var(--tint); color: var(--ink); transform: none; }
+.onb__steps li.on button { background: var(--tint-2); color: var(--ink); font-weight: 600; }
+.onb__steps .n { width: 24px; height: 24px; flex: none; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; font-weight: 600; border: 1.5px solid currentColor; }
+.onb__steps li.ok .n { background: var(--ok); border-color: var(--ok); color: var(--bg); }
+.onb__steps li.on .n { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.onb__main { display: flex; flex-direction: column; min-width: 0; }
+.onb__main .db { flex: 1; overflow-y: auto; max-height: calc(100vh - 220px); }
+.onb__main .dh h2 { font-size: 24px; line-height: 32px; letter-spacing: -0.02em; }
+.onb__foot { display: flex; align-items: center; gap: 12px; padding: 16px 24px 24px; border-top: 1px solid var(--line); }
+.onb__foot .onb__count { flex: 1; text-align: center; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.onb__h { font-weight: 600; margin: 0 0 8px; }
+.onb__need, .onb__ol { margin: 0 0 16px; padding-left: 20px; display: grid; gap: 8px; font-size: 14px; line-height: 20px; max-width: 65ch; }
+.onb__label { display: block; font-size: 14px; font-weight: 500; color: var(--muted); margin-bottom: 4px; }
+.onb__check { margin: 0 0 16px; }
+.onb__inline { margin: 0 0 0 8px; align-items: center; }
+.onb__err { margin-top: 12px; font-size: 14px; }
+.onb-open.pending { color: var(--ink); background: var(--tint); }
+.onb-open.pending::before { background: var(--action); border-color: var(--action); }
+@media (max-width: 760px) {
+  .onb__grid { grid-template-columns: 1fr; min-height: 0; }
+  .onb__steps { border-right: 0; border-bottom: 1px solid var(--line); padding: 16px; }
+  .onb__steps ol { grid-auto-flow: column; overflow-x: auto; }
+  .onb__steps li button { padding: 0 8px; gap: 8px; white-space: nowrap; }
+  .onb__kicker { display: none; }
+}

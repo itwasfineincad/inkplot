@@ -44,7 +44,42 @@ PLOT_PAGE = os.path.join(HERE, 'plot.html')
 FONTS_PAGE = os.path.join(HERE, 'fonts.html')
 STYLES = os.path.join(HERE, 'styles.json')     # saved handwriting styles, shared by the Write page and the Plotter
 STATIC = os.path.join(HERE, 'static')          # fonts and the icon, served under /static/
-STATIC_TYPES = {'.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.png': 'image/png', '.css': 'text/css; charset=utf-8'}
+STATIC_TYPES = {'.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.png': 'image/png', '.css': 'text/css; charset=utf-8',
+                '.js': 'text/javascript; charset=utf-8'}
+SETUP = os.path.join(os.path.dirname(plotjob.STATE), 'setup.json')   # the Get started guide's progress (personal)
+
+
+def load_setup():
+    try:
+        with open(SETUP) as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return None
+
+
+def setup_info():
+    """What the Get started guide needs: its saved progress and what is already set up."""
+    saved = load_setup()
+    m = plotjob.machine()
+    c = plotjob.calibrate.recall()
+    return dict(state=saved or {}, first_run=saved is None, printer=m['printer'], printers=plotjob.printer_list(),
+                pen=m['pen'], surface=m['surface'], calibrated=bool(c.get('calibrated')) and m['calibrated'],
+                calibrated_on=c.get('calibrated'))
+
+
+def save_setup(upd):
+    d = load_setup() or {}
+    for k in ('step', 'done', 'dismissed'):
+        if k in upd:
+            d[k] = upd[k]
+    for k in ('checks', 'completed'):
+        if isinstance(upd.get(k), dict):
+            d.setdefault(k, {}).update({str(a): bool(b) for a, b in upd[k].items()})
+    tmp = SETUP + '.part'
+    with open(tmp, 'w') as f:
+        json.dump(d, f, indent=1)
+    os.replace(tmp, SETUP)
 
 
 def _d(path, dy):
@@ -128,6 +163,8 @@ class Handler(BaseHTTPRequestHandler):
                             faces=[dict(id=f, name=n) for f, n in penfont.faces()]))
         elif self.path == '/status':
             self._send(me.status())
+        elif self.path == '/setup':
+            self._send(setup_info())
         elif self.path == '/styles':
             self._send(load_styles())
         elif self.path.split('?', 1)[0] in ('/fonts', '/fonts/'):
@@ -322,6 +359,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.plot_post(self.path, req)
             if self.path.startswith('/fonts/'):
                 return self.fonts_post(self.path, req)
+            if self.path == '/setup':
+                save_setup(req)
+                return self._send(setup_info())
             if self.path in ('/styles', '/styles/delete'):
                 name = re.sub(r'\s+', ' ', str(req.get('name') or '')).strip().lower()
                 styles = [s for s in load_styles() if s['name'].lower() != name]
@@ -391,7 +431,8 @@ def main():
     threading.Thread(target=plotjob.warm_thumbs, daemon=True).start()
     url = 'http://127.0.0.1:{}/'.format(server.server_address[1])
     print('Handwriting studio running at ' + url)
-    print('Close this window or press Ctrl+C to quit.')
+    if sys.stdout.isatty():
+        print('Close this window or press Ctrl+C to quit.')
     if '--no-browser' not in sys.argv:
         threading.Timer(0.4, webbrowser.open, [url]).start()
     try:

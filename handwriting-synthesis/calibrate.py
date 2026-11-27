@@ -73,6 +73,7 @@ def remember(**kw):
         mem = {}
     if 'offset_x' in kw or 'offset_y' in kw:
         kw.setdefault('printer', printers.current()['id'])
+        kw.setdefault('calibrated', __import__('time').strftime('%Y-%m-%d'))   # the setup guide's calibration tick
     mem.update(kw)
     json.dump(mem, open(MEMORY, 'w'), indent=1)
 
