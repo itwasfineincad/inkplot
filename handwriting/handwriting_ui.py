@@ -335,6 +335,8 @@ class Handler(BaseHTTPRequestHandler):
             engine, font = req.get('engine', 'model'), req.get('font')
             if self.path == '/render':
                 self._send(render_response(text, style, engine, font))
+            elif self.path == '/stop':
+                self._send(me.stop())
             elif self.path == '/generate':
                 engines.generate(text, style, engine, font)
                 self._send(render_response(text, style, engine, font))

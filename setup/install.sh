@@ -203,7 +203,7 @@ else
 fi
 [ -f "$SYN/calibration.json" ] || cp "$SYN/calibration.example.json" "$SYN/calibration.json"
 chmod +x "$ROOT/inkplot" "$SYN/plotcheck" "$SYN/calibrate" "$SYN/magnets" "$ROOT/handwriting/My Handwriting.command" \
-  "$ROOT/Install InkPlot.command" "$ROOT/setup/install.sh" 2>/dev/null || true
+  "$ROOT/Install InkPlot.command" "$ROOT/Uninstall InkPlot.command" "$ROOT/setup/install.sh" "$ROOT/setup/get.sh" 2>/dev/null || true
 
 # ---- 5. shortcuts -------------------------------------------------------------------------------
 step "Shortcuts"
@@ -240,6 +240,7 @@ else
 fi
 printf '  %sThen%s        Plotter %s Machine: choose your printer and calibrate the pen\n' "$B" "$R" "$DOT"
 printf '  %sGuide%s       https://github.com/itwasfineincad/inkplot/blob/main/docs/GUIDE.md\n' "$B" "$R"
+printf '  %sLater%s       run the install line again to update or remove InkPlot\n' "$B" "$R"
 if [ "$OS" = Linux ]; then
   has tesseract || printf '\n  %s%s Optional: sudo apt install tesseract-ocr for better AI handwriting%s\n' "$D" "$DOT" "$R"
   has pdftoppm || printf '  %s%s Optional: sudo apt install poppler-utils to scan font templates saved as PDF%s\n' "$D" "$DOT" "$R"

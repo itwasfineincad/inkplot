@@ -29,6 +29,8 @@ can send:
   move outside the profile's safe area.
 - Check any file you make with `handwriting-synthesis/plotcheck FILE.gcode`.
 - Keep the app's wording short and plain.
+- The Claude Code skill in `.claude/skills/handwriting-font/` is part of InkPlot. If you change how fonts are
+  made or read, update the skill so Claude gives people the right steps.
 
 By contributing, you agree your changes are shared under the same licence as InkPlot
 ([PolyForm Noncommercial 1.0.0](LICENSE)).

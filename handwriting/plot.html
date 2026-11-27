@@ -1887,7 +1887,8 @@ async function startSim() {
   el('circle', { cx: 0, cy: 0, r: 1.2, 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.4 }, sim.nozzle);
   sim.pen = el('circle', { r: 1.1, class: 'pen' }, $('g-sim'));
   $('s-play').innerHTML = PAUSE;
-  requestAnimationFrame(simFrame);
+  const gen = ++simGen;                            // one animation loop per preview, even after a quick stop and start
+  requestAnimationFrame(now => simFrame(now, gen));
 }
 function stopSim() {
   sim.on = false; sim.playing = false; $('simbar').hidden = true; cv.classList.remove('simming'); $('g-sim').innerHTML = ''; drawSel(); drawTravel();
@@ -1896,7 +1897,8 @@ function strokeD(p, upto) { let s = 'M' + p[0] + ' ' + p[1]; const n = upto === 
 function bsearch(a, v, hi) { let lo = 0; hi = hi ?? a.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (a[m] <= v) lo = m; else hi = m - 1; } return lo; }
 function simRender() {
   const { strokes, starts, times, t } = sim;
-  let k = bsearch(starts, t, strokes.length);              // stroke being drawn (or travelled to)
+  // stroke being drawn (or travelled to); at the very end t equals the last start entry, which is past the last stroke
+  let k = Math.min(bsearch(starts, t, strokes.length), strokes.length - 1);
   if (t < starts[0]) k = -1;
   const doneUpTo = k < 0 ? 0 : (t >= times[k][times[k].length - 1] ? k + 1 : k);
   if (doneUpTo < sim.drawn) { sim.done.innerHTML = ''; sim.drawn = 0; }
@@ -1930,12 +1932,13 @@ function simRender() {
   if (!sim.scrub) setPos(Math.round(t / sim.T * 1000));
   $('s-time').textContent = clock(t) + ' / ' + clock(sim.T) + (sim.partB.some(Boolean) ? (inB ? ' · part 2' : ' · part 1') : '');
 }
-function simFrame(now) {
-  if (!sim.on) return;
+let simGen = 0;
+function simFrame(now, gen) {
+  if (!sim.on || gen !== simGen) return;
   const dt = Math.min(0.1, (now - sim.last) / 1000); sim.last = now;
+  requestAnimationFrame(t => simFrame(t, gen));   // first, so a drawing error can never stop the preview for good
   if (sim.playing) { sim.t = Math.min(sim.T, sim.t + dt * sim.speed); if (sim.t >= sim.T) { sim.playing = false; $('s-play').innerHTML = PLAY; } }
   simRender();
-  requestAnimationFrame(simFrame);
 }
 $('play').onclick = () => sim.on ? stopSim() : startSim();
 $('s-close').onclick = stopSim;

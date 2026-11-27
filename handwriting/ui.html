@@ -21,6 +21,7 @@ body { display: grid; grid-template-rows: 56px 1fr; }
 .gen .state { flex: 1; font-size: 14px; line-height: 20px; color: var(--muted); }
 .gen .state.stale { color: var(--warn); }
 .gen .state.ok { color: var(--ok); }
+.gen .state b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .bar { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 12px; }
 .bar i { display: block; height: 100%; width: 0; background: var(--ink); transition: width var(--m-panel) var(--ease); }
 .bar.indet i { width: 35%; animation: slide 1.2s var(--ease) infinite; }
@@ -124,8 +125,9 @@ body { display: grid; grid-template-rows: 56px 1fr; }
       <div class="gen">
         <div class="state" id="state" role="status">Loading the handwriting model…</div>
         <button id="generate" title="⌘ Return">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-          Write it now
+          <svg class="i-write" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          <svg class="i-stop" viewBox="0 0 24 24" fill="currentColor" hidden><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+          <span id="gen-label">Write it now</span>
         </button>
       </div>
       <div class="bar" id="bar" hidden><i></i></div>
@@ -313,7 +315,7 @@ function showPanel(v) {
   state.panel = v;
 }
 
-let renderTimer, saveTimer, autoTimer, seq = 0, generating = false, again = false, failed = false;
+let renderTimer, saveTimer, seq = 0, generating = false, failed = false;
 function changed(plotOnly) {
   if (!plotOnly) failed = false;
   clearTimeout(saveTimer); saveTimer = setTimeout(() => api('/settings', state).catch(() => {}), 500);
@@ -332,7 +334,6 @@ async function render() {
     const d = await api('/render', { text: state.text, style: state.style, engine: state.engine, font: state.font });
     if (id === seq && !renderAgain) {
       last = d; draw(d); showState(d);
-      if (d.missing && !generating && !failed) { clearTimeout(autoTimer); autoTimer = setTimeout(generate, 1200); }
     }
   } catch (e) { toast('Could not render', e.message, true); }
   rendering = false;
@@ -344,41 +345,66 @@ function showState(d) {
   if (generating) return;
   if (state.engine === 'font') { el.className = d && d.strokes ? 'state ok' : 'state'; el.textContent = d && d.strokes ? 'Up to date: written in the font, instantly' : 'Type something to write'; return; }
   if (!ready) { el.className = 'state'; el.textContent = 'Loading the handwriting model…'; return; }
-  if (d && d.missing) { el.className = 'state stale'; el.textContent = `${d.missing} line${d.missing > 1 ? 's' : ''} still to write, starting shortly`; }
+  if (d && d.missing) { el.className = 'state stale'; el.textContent = `${d.missing} line${d.missing > 1 ? 's' : ''} to write. Press Write it now.`; }
   else if (d && d.strokes) { el.className = 'state ok'; el.textContent = 'Up to date'; }
-  else { el.className = 'state'; el.textContent = 'Type something and it will be written'; }
+  else { el.className = 'state'; el.textContent = 'Type something, then press Write it now'; }
+}
+
+function fmtLeft(sec) {
+  if (sec == null) return '';
+  if (sec < 10) return 'a few seconds left';
+  if (sec < 60) return `about ${Math.round(sec / 5) * 5} s left`;
+  const m = Math.floor(sec / 60), r = Math.round((sec % 60) / 10) * 10;
+  return r ? `about ${m} min ${r} s left` : `about ${m} min left`;
+}
+function genButton(mode) {          // 'write', 'stop' or 'stopping'
+  const b = $('generate');
+  b.querySelector('.i-write').hidden = mode !== 'write';
+  b.querySelector('.i-stop').hidden = mode === 'write';
+  $('gen-label').textContent = mode === 'write' ? 'Write it now' : mode === 'stop' ? 'Stop' : 'Stopping…';
+  b.disabled = mode === 'stopping';
+  b.title = mode === 'write' ? '⌘ Return' : 'Stops after the line being written';
+}
+async function stopWriting() {
+  genButton('stopping');
+  $('state').textContent = 'Stopping after this line…';
+  try { await api('/stop', {}); } catch (e) {}
 }
 
 async function generate() {
-  clearTimeout(autoTimer);
-  if (generating) { again = true; return; }
-  generating = true; again = false;
-  $('generate').disabled = true; $('paper').classList.add('busy');
+  if (generating) return stopWriting();
+  if (state.engine === 'font') return;
+  generating = true; failed = false;
+  genButton('stop'); $('paper').classList.add('busy');
   const bar = $('bar'); bar.hidden = false; bar.classList.add('indet');
   let shownLines = 0;
   const poll = setInterval(async () => {
     try {
       const s = await api('/status');
       const el = $('state'); el.className = 'state';
-      if (s.phase === 'loading') el.textContent = 'Loading the handwriting model…';
+      if (s.stopping) el.textContent = 'Stopping after this line…';
+      else if (s.phase === 'loading') el.textContent = 'Loading the handwriting model…';
       else if ((s.phase === 'writing' || s.phase === 'checking') && s.lines) {
-        const what = s.round > 1 ? 'rewriting a hard-to-read part' : s.phase === 'checking' ? 'picking the most readable try' : `${state.style.attempts} tries`;
-        el.textContent = `Writing line ${s.line} of ${s.lines} (${what})…`;
+        const left = s.eta == null ? 'working out the time left' : fmtLeft(s.eta);
+        el.innerHTML = `Writing line <b>${s.line}</b> of <b>${s.lines}</b> · ${left}`;
         const part = s.phase === 'checking' ? s.done / Math.max(1, s.total) : 0;
         bar.classList.remove('indet'); bar.querySelector('i').style.width = ((s.lines_done + part) / s.lines * 100) + '%';
       }
       if (s.lines_done > shownLines) { shownLines = s.lines_done; render(); }     // show each line as soon as it is done
     } catch (e) {}
   }, 350);
+  let stopped = false;
   try {
     const d = await api('/generate', { text: state.text, style: state.style, engine: state.engine, font: state.font });
     last = d; draw(d);
+    stopped = !!d.missing;
   } catch (e) { failed = true; toast('Could not write that', e.message, true); }
   clearInterval(poll);
   generating = false;
-  $('generate').disabled = false; $('paper').classList.remove('busy');
+  genButton('write'); $('paper').classList.remove('busy');
   bar.hidden = true; bar.classList.remove('indet'); bar.querySelector('i').style.width = '0';
-  if (again) generate(); else render();
+  await render();
+  if (stopped) { $('state').className = 'state stale'; $('state').textContent = `Stopped. ${last.missing} line${last.missing > 1 ? 's' : ''} still to write: press Write it now to carry on.`; }
 }
 
 function draw(d) {
@@ -549,7 +575,10 @@ async function init() {
 
   $('text').addEventListener('input', e => { state.text = e.target.value; changed(); });
   $('seed').addEventListener('input', e => { state.style.seed = Math.max(0, parseInt(e.target.value || '0', 10)); changed(); });
-  $('dice').onclick = () => { state.style.seed = Math.floor(Math.random() * 999999) + 1; $('seed').value = state.style.seed; changed(); };
+  $('dice').onclick = () => {            // Shuffle is a request for new writing, so with the AI model it starts writing
+    state.style.seed = Math.floor(Math.random() * 999999) + 1; $('seed').value = state.style.seed; changed();
+    if (state.engine === 'model' && !generating) setTimeout(generate, 120);
+  };
   $('generate').onclick = generate;
   $('reset').onclick = () => { state.style = { ...defaults.style }; if (state.engine === 'font') state.font = { ...defaults.font }; paintAll(); changed(); };
   $('split').onchange = e => { state.split = e.target.checked; changed(true); };
@@ -559,7 +588,7 @@ async function init() {
   $('to-plotter').onclick = async () => {
     try {
       const r = await api('/render', { text: state.text, style: state.style, engine: state.engine, font: state.font });
-      if (r.missing) { toast('Not written yet', 'The writing is not finished. Wait a moment, or press Write it now, then send it again.', true); return; }
+      if (r.missing) { toast('Not written yet', 'Press Write it now, wait for it to finish, then send it again.', true); return; }
       const hit = styles.find(styleMatches);
       await api('/plot/add', { text: state.text, style: state.style, engine: state.engine, font: state.font, style_name: hit ? hit.name : '' });
       location.href = '/plotter';
@@ -578,7 +607,7 @@ async function init() {
   $('theme').onchange = e => { state.theme = e.target.value || null; applyTheme(); changed(true); };
   document.addEventListener('keydown', e => {
     if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); generate(); }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); if (!generating) generate(); }
   });
 }
 init();

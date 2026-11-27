@@ -32,6 +32,7 @@ Everything from unboxing to a finished letter, one step at a time. If you only r
 | **Magnets** | Four round magnets, about 10 mm across and 5 mm tall, to hold the paper flat |
 | **Pad** (optional) | A thin, flat sheet under the paper, e.g. 0.5 mm card, so the pen presses evenly |
 | **Computer** | A Mac (Apple silicon or Intel) or a Linux PC (Ubuntu, Debian, Fedora…), about 2 GB of free disk space |
+| **Claude Code** (optional) | To have Claude coach you through making a font from your own handwriting ([section 10](#10-your-own-handwriting-as-a-font)) |
 
 Plotting doesn't need filament: the printer only moves, the pen does the writing.
 
@@ -44,19 +45,29 @@ curl -fsSL https://raw.githubusercontent.com/itwasfineincad/inkplot/main/setup/g
 ```
 
 It puts InkPlot in a folder called **InkPlot** in your home folder and installs everything it needs,
-including Python 3.11 if you don't have it (no password needed). It shows its progress:
+including Python 3.11 if you don't have it (no password needed). It shows each step with a tick as it goes:
 
 ```
-== Getting InkPlot into ~/InkPlot
-== Checking for Python 3.11
-== Making the Python environment in ~/.venvs/handwriting-synthesis
-== Installing libraries (TensorFlow is large; this can take a few minutes)
-== Downloading the handwriting model
-== Done
+Getting InkPlot into ~/InkPlot
+  ✓ Downloaded
+
+[1/5] Python 3.11
+[2/5] Python environment
+[3/5] Libraries
+  ✓ Installing TensorFlow and the rest (1m 00s)
+[4/5] Handwriting model
+[5/5] Shortcuts
+
+  ✓ InkPlot is installed
 ```
 
-It takes 5–10 minutes the first time. **To update InkPlot later, run the same line again**: your fonts,
-layouts and calibration are kept.
+It takes 5–10 minutes the first time. If something goes wrong it stops with a ✗, says which step failed and
+shows the last lines of its log.
+
+**To update or remove InkPlot later, run the same line again.** It sees InkPlot is already there and asks:
+**Update** (keeps your fonts, layouts and calibration), **Remove** or **Cancel**. Remove asks before deleting
+anything, keeps a copy of your own files in `~/InkPlot-saved-<date>` unless you say no, and moves InkPlot to the
+Trash. On a Mac you can also double-click **Uninstall InkPlot.command** in the InkPlot folder.
 
 **On Linux**, two optional extras help: `tesseract-ocr` (better AI handwriting: it picks the most readable
 try of each line) and `poppler-utils` (font templates scanned as PDF). On Ubuntu or Debian:
@@ -92,7 +103,7 @@ The studio has three pages, in the bar at the top:
 
 **Write page, in short:**
 
-- Type in **Text**. It starts writing by itself.
+- Type in **Text**, then press **Write it now**. It shows the time left, and **Stop** halts it after the line it's on.
 - **AI model** gives realistic, varied handwriting; the first line takes about 30 seconds while the model loads,
   later lines a few seconds each. **Print font** (or your own font) is instant.
 - The **Handwriting** tab picks the writer (13 to choose from) and how neat it is. **Look** sets size, slant and
@@ -137,8 +148,8 @@ those change, so **save your plot files again after recalibrating**.
 
 ![The Plotter page](images/plotter.png)
 
-1. On the **Write** page, type a short note and click **Send to Plotter**. Or, on the Plotter page, use
-   **Add to the sheet > Handwriting**.
+1. On the **Write** page, type a short note, press **Write it now**, and when it's done click **Send to
+   Plotter**. Or, on the Plotter page, use **Add to the sheet > Handwriting**.
 2. Add anything else: a **Drawing** from the built-in library (25 rockets, cars and aircraft), your own
    **Upload SVG**, a **Label**, a **Frame**, **Ruled lines**. Drag to move, use the corner handles to resize,
    the round handle to rotate.
@@ -152,7 +163,7 @@ those change, so **save your plot files again after recalibrating**.
    2. **Pen**: **Draw** for the real plot. **First time with a new layout?** Choose **Pen up (rehearsal)**
       first: the same moves with the pen 10 mm above the paper, so you can check nothing hits the frame or a
       magnet.
-   3. **Save to**: the printer's **SD card** (put it in your Mac first) or a folder.
+   3. **Save to**: the printer's **SD card** (put it in your computer first) or a folder.
 7. Click **Save**. The window then shows **How to plot**: eject the card, home with the holder off, clip it
    on, and one step per file saying where the paper goes and which file to print. Tick each as you go.
    **How to plot, step by step** on the Print tab opens it again.
@@ -239,8 +250,13 @@ it under **Font**. If you write upright, set **Slant** to 0. Then **Save style**
 Plotter page. Labels on the Plotter have their own **Font** list.
 
 Anything you didn't draw is filled in from the built-in print font, and accented letters (é, ü, ø…) are built
-from your own letters. Your fonts are saved in `handwriting/fonts/` and **never leave your Mac**: that folder is
-excluded from git, so they can't be published by accident.
+from your own letters. Your fonts are saved in `handwriting/fonts/` and **never leave your computer**: that
+folder is excluded from git, so they can't be published by accident.
+
+**Let Claude walk you through it.** InkPlot includes a [Claude Code](https://claude.com/claude-code) skill for
+exactly this. In Terminal, run `cd ~/InkPlot && claude`, then type "make a font from my handwriting". Claude
+asks which way suits you, takes you through it step by step, then previews the font and fixes missing letters,
+broken strokes or letters at the wrong size. The skill is in `.claude/skills/handwriting-font/`.
 
 ## 11. Troubleshooting
 
@@ -253,7 +269,8 @@ excluded from git, so they can't be published by accident.
 | A **red message** on the Print tab | It says what's wrong, e.g. something in the red area or over a magnet. Move or shrink that item. Files are only saved once the check passes. |
 | The printer **can't read the SD card** | Eject it first (**Plot… > Save to > Eject**). **Clean card** next to it removes hidden macOS files the printer may show as junk. |
 | The **first AI writing is slow** | Normal: the model loads for about 30 seconds. After that each line takes a few seconds. |
-| The page looks **unstyled** after updating InkPlot | Restart the studio: close its Terminal window and double-click **My Handwriting.command** again. |
+| The page looks **unstyled**, or something new is missing, after updating | Restart the studio: close its Terminal window and start it again. |
+| The AI writing doesn't start | It waits for you: press **Write it now**. **Stop** halts it after the line it's on. |
 | **"can't be opened"** when double-clicking a .command file (Mac) | Right-click it, choose **Open**, then **Open**. Or use System Settings > Privacy & Security > Open Anyway. |
 | The installer says **'patch' or 'git' is needed** (Linux) | Run `sudo apt install patch`, then run the install line again. |
 | **`inkplot`: command not found** (Linux) | Open a new terminal, or run `~/InkPlot/inkplot`. |

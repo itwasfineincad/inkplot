@@ -13,7 +13,8 @@ macOS or Linux, about 2 GB free. Paste this into Terminal:
 curl -fsSL https://raw.githubusercontent.com/itwasfineincad/inkplot/main/setup/get.sh | bash
 ```
 
-It puts InkPlot in `~/InkPlot` and fetches Python 3.11 if you don't have it. Run the same line again to update.
+It puts InkPlot in `~/InkPlot` and fetches Python 3.11 if you don't have it. Run the same line again to update
+or remove it.
 
 To start it, double-click `handwriting/My Handwriting.command` on a Mac, or pick InkPlot in the app menu on
 Linux (or run `inkplot`). It opens in your browser. Before your first plot, choose your printer and calibrate the
@@ -22,9 +23,10 @@ every step.
 
 ## What you get
 
-You type a letter and an AI model writes it out in one of 13 hands, or in a single-line font. You can make that
-font from your own handwriting: draw the letters on screen, fill in a printed template and scan it, or import a
-font file.
+You type a letter, press Write it now, and an AI model writes it out in one of 13 hands, showing the time left as
+it goes. Or use a single-line font, which is instant. You can make that font from your own handwriting: draw the
+letters on screen, fill in a printed template and scan it, or import a font file. Claude can walk you through it
+(see below).
 
 On the Plotter page you lay the writing out on A4 with line drawings, your own SVGs, labels, frames and ruled
 lines. Anything the pen can't reach shows in red. Long letters flow over as many sheets as they need, and the
@@ -41,6 +43,24 @@ an old file is refused once you change any of them.
 | Write | Fonts |
 |---|---|
 | ![The Write page with AI handwriting on ruled paper](docs/images/write.png) | ![The Fonts page with boxes to draw each letter](docs/images/fonts.png) |
+
+## Make your handwriting font with Claude
+
+InkPlot comes with a [Claude Code](https://claude.com/claude-code) skill that coaches you through turning your
+own handwriting into a font the pen can follow. Open the InkPlot folder in Claude Code and ask for it:
+
+```bash
+cd ~/InkPlot && claude
+```
+
+Then type something like "make a font from my handwriting". Claude picks it up from
+`.claude/skills/handwriting-font/` by itself. It asks whether you'd rather draw the letters on screen, scan a
+filled-in template or import a font you already have, then takes you through it one step at a time. Once the
+font is made, it draws a preview, checks for missing letters, broken strokes and letters at the wrong size,
+and fixes what it finds. It also explains why an ordinary handwriting font plots as a double outline, and what
+to do instead.
+
+Your font stays on your computer: the fonts folder is never committed.
 
 ## What's tested
 
@@ -64,10 +84,11 @@ you can send. See [CONTRIBUTING.md](CONTRIBUTING.md).
 handwriting/            the studio: server, Write, Plotter and Fonts pages, plotter engine, fonts
 handwriting-synthesis/  safety checker, calibration, magnet and printer-profile tools; the AI model goes here
 blueprints/             line drawings to plot, with credits
-setup/                  get.sh (one-command install), install.sh and the patch applied to the AI model
+setup/                  get.sh (install, update, remove), install.sh and the patch applied to the AI model
 inkplot                 starts the studio
+*.command               double-click shortcuts on a Mac: install, uninstall, and start (in handwriting/)
 docs/                   the guide and its pictures
-.claude/skills/         a Claude Code skill that coaches you through making a handwriting font
+.claude/skills/         the Claude Code skill that coaches you through making a handwriting font
 ```
 
 Check any G-code file on its own: `handwriting-synthesis/plotcheck path/to/file.gcode`

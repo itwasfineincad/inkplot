@@ -24,6 +24,7 @@ import json
 import os
 import sys
 import threading
+import time
 import zlib
 
 import numpy as np
@@ -59,6 +60,45 @@ _ready = threading.Event()
 _error = None
 _mh = None              # my_hand module, once loaded
 progress = dict(phase='loading', done=0, total=0)
+_stop = threading.Event()                 # set by stop(): finish the line being written, then stop
+_timing = dict(start=None, line_start=None, chars_left=0, chars_line=0, rate=None)   # for the time-left estimate
+SPEED_FILE = os.path.join(CACHE, 'speed.json')
+
+
+def _saved_rate():
+    """Seconds per character per try, measured on this computer last time (None until one line has been written)."""
+    try:
+        with open(SPEED_FILE) as f:
+            return float(json.load(f)['rate'])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def _save_rate(rate):
+    try:
+        os.makedirs(CACHE, exist_ok=True)
+        with open(SPEED_FILE, 'w') as f:
+            json.dump(dict(rate=rate), f)
+    except OSError:
+        pass
+
+
+def stop():
+    """Ask the writing to stop. The line being written is finished and kept; the model can't be cut off mid-line."""
+    if progress.get('phase') in ('writing', 'checking'):
+        _stop.set()
+        progress.update(stopping=True)
+    return status()
+
+
+def _eta():
+    """Seconds left for the writing under way, or None when there's nothing to go on yet."""
+    t = _timing
+    if progress.get('phase') not in ('writing', 'checking') or t['rate'] is None or t['line_start'] is None:
+        return None
+    per_try = progress.get('tries') or 1
+    current = max(0.0, t['chars_line'] * t['rate'] * per_try - (time.time() - t['line_start']))
+    return int(round(current + t['chars_left'] * t['rate'] * per_try))
 
 
 def settings(d=None):
@@ -99,7 +139,7 @@ def load_in_background():
 
 
 def status():
-    return dict(progress, ready=_ready.is_set(), error=_error)
+    return dict(progress, ready=_ready.is_set(), error=_error, eta=_eta())
 
 
 # text -> lines ---------------------------------------------------------------
@@ -326,9 +366,16 @@ def generate(text, d):
     if not _ready.is_set():
         raise RuntimeError(_error or 'the model is not loaded')
     os.makedirs(CACHE, exist_ok=True)
+    _stop.clear()
     with _lock:
         n = s['attempts']
+        chars = [sum(len(t) for t in g) for g in todo]
+        _timing.update(start=time.time(), rate=_saved_rate(), chars_left=sum(chars))
+        progress.update(tries=n, stopping=False, stopped=False)
         for li, group in enumerate(todo):
+            if _stop.is_set():
+                break
+            _timing.update(line_start=time.time(), chars_line=chars[li], chars_left=_timing['chars_left'] - chars[li])
             best = {}
             rounds = [group]
             for r in range(2):
@@ -350,7 +397,16 @@ def generate(text, d):
             for t, (sc, c) in best.items():               # this line is finished: save it now
                 np.save(os.path.join(CACHE, _key(t, s) + '.npy'), c)
             progress.update(lines_done=li + 1)
-        progress.update(phase='ready', done=0, total=0, round=0, line=0, lines=0, lines_done=0)
+            took = time.time() - _timing['line_start']   # learn this computer's speed for the next estimate
+            rate = took / max(1, chars[li]) / max(1, n)
+            _timing['rate'] = rate if _timing['rate'] is None else 0.5 * _timing['rate'] + 0.5 * rate
+        if _timing['rate'] is not None:
+            _save_rate(_timing['rate'])
+        stopped = _stop.is_set()
+        _stop.clear()
+        _timing.update(line_start=None)
+        progress.update(phase='ready', done=0, total=0, round=0, line=0, lines=0, lines_done=0, stopping=False,
+                        stopped=stopped)
     return sum(len(g) for g in todo)
 
 

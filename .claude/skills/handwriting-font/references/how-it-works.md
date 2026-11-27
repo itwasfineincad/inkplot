@@ -32,8 +32,8 @@ characters cleaned first). It is cached and reloaded when the file changes.
 
 ## Scan reader (`from_scan`)
 
-1. Load as grey (PIL). PDFs are rendered at about 300 dpi with macOS `qlmanage` (sips as a fallback);
-   iPhone HEIC photos are converted to JPEG with `sips` (the venv's Pillow can't read HEIC).
+1. Load as grey (PIL). PDFs are rendered at about 300 dpi: macOS `qlmanage` (sips as a fallback), Linux
+   `pdftoppm`. iPhone HEIC photos become JPEG: `sips` on macOS, `pillow-heif` (or `heif-convert`) on Linux.
 2. Find the four black corner squares: dark connected blobs that are square, solid, about 6 mm, nearest
    each image corner (`find_marks`).
 3. Homography from template mm to picture pixels; each cell resampled at 0.08 mm per pixel.

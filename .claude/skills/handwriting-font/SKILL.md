@@ -30,11 +30,12 @@ a phone and want their *real* handwriting, recommend the template. If they just 
 screen takes ten minutes.
 
 Their handwriting font is personal: it lets anyone write in their hand. Say once that it stays on their
-Mac (`handwriting/fonts/` is git-ignored) and should not be shared or committed.
+computer (`handwriting/fonts/` is git-ignored) and should not be shared or committed.
 
 ### Route 1: draw it on screen
 
-1. Start the studio (double-click `handwriting/My Handwriting.command`) and open the **Fonts** tab.
+1. Start the studio (on a Mac double-click `handwriting/My Handwriting.command`; on Linux pick InkPlot in the app
+   menu; on either, run `~/InkPlot/inkplot`) and open the **Fonts** tab.
 2. Click **New font** and type a name, e.g. "Jo's hand".
 3. In each box, write the character so it **sits on the solid line**. Small letters (a, c, e, n, o…) reach
    the **dashed line**; tall letters and capitals go above it, tails (g, j, p, y) below.
@@ -57,7 +58,8 @@ works but letters come out stiffer.
    box, and write lowercase twice (the template has two sets).
 4. Scan at **300 dpi**, or photograph the page flat, in even light, straight from above, with **all four
    black corner squares** in the picture. PNG, JPG, PDF and iPhone photos (HEIC) all work. On an iPhone,
-   Notes > Scan Documents also works well (it flattens the page); AirDrop the result to the Mac.
+   Notes > Scan Documents also works well (it flattens the page); AirDrop or email it to the computer.
+   On Linux a PDF scan needs `poppler-utils` installed (`sudo apt install poppler-utils`).
 5. On the **Fonts** tab click **Upload the scan…**, or run:
    `~/.venvs/handwriting-synthesis/bin/python fontimport.py scan path/to/scan.jpg --name "Jo's hand"`
 6. The result lists **empty boxes** and characters **not in it**. Then check it by eye (next section).
@@ -115,7 +117,8 @@ before saving the style.
 
 | Message | What to tell them |
 |---|---|
-| Could not read that picture / iPhone photo | Export it from Preview as JPEG (File > Export) and upload that. |
+| Could not read that picture / iPhone photo | Save it as a JPEG (on a Mac: open in Preview, File > Export) and upload that. |
+| Could not read the PDF: install poppler-utils | Linux only: `sudo apt install poppler-utils`, or save the scan as PNG or JPG. |
 | Couldn't find all four black squares | Rescan or rephotograph the whole page so all four corner squares show, nothing covering them. |
 | No small letters came out | The pen is too light or the scan too dark; use a black pen and scan at 300 dpi in colour. |
 | That SVG has no `<font>` in it | It's a drawing, not an SVG font; use the drawing in the Plotter (Upload SVG) instead. |
